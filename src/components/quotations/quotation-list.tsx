@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   Card,
   CardContent,
@@ -57,6 +59,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { formatCurrency } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -67,6 +70,7 @@ export function QuotationList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
 
   const enrichedQuotations = useMemo(() => {
@@ -98,8 +102,79 @@ export function QuotationList() {
     setQuotations(quotations.filter((q) => q.id !== quotationId));
   };
   
-  const handleDownloadPdf = (quotationId: string) => {
-      alert(`PDF download for quotation ID: ${quotationId} is not implemented yet.`);
+  const handleDownloadPdf = (quotation: Quotation) => {
+      if (!quotation.company) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Company data is missing for this quotation.',
+        });
+        return;
+      }
+      const doc = new jsPDF();
+      
+      doc.setFontSize(20);
+      doc.text("Quotation", 105, 20, { align: 'center' });
+  
+      doc.setFontSize(10);
+      doc.text("QuoteCraft Inc.", 14, 30);
+      doc.text("123 AI Avenue, Tech City, 560001", 14, 35);
+      doc.text("contact@quotecraft.com", 14, 40);
+  
+      doc.text(`Quotation No: ${quotation.quotationNumber}`, 200, 30, { align: 'right' });
+      doc.text(`Date: ${new Date(quotation.date).toLocaleDateString('en-GB')}`, 200, 35, { align: 'right' });
+  
+      doc.setFontSize(12);
+      doc.text("Bill To:", 14, 55);
+      doc.setFontSize(10);
+      doc.text(quotation.company.name, 14, 60);
+      doc.text(quotation.company.address, 14, 65);
+      doc.text(quotation.company.email, 14, 70);
+      doc.text(`GSTIN: ${quotation.company.gstin}`, 14, 75);
+  
+      autoTable(doc, {
+        startY: 85,
+        head: [['Sr.', 'Product Name', 'Model', 'HSN', 'Qty', 'Price', 'Total']],
+        body: quotation.products.map(p => [
+          p.srNo,
+          p.name,
+          p.model,
+          p.hsn,
+          `${p.quantity} ${p.quantityType}`,
+          formatCurrency(p.price),
+          formatCurrency(p.total)
+        ]),
+        headStyles: { fillColor: [38, 38, 38] },
+        theme: 'grid',
+        styles: {
+            halign: 'right',
+        },
+        columnStyles: {
+            0: { halign: 'center' },
+            1: { halign: 'left' },
+            2: { halign: 'left' },
+            3: { halign: 'left' },
+            4: { halign: 'center' },
+        }
+      });
+  
+      const finalY = (doc as any).lastAutoTable.finalY;
+  
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text("Grand Total:", 145, finalY + 10);
+      doc.text(formatCurrency(quotation.grandTotal), 200, finalY + 10, { align: 'right' });
+      
+      if (quotation.termsAndConditions) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text("Terms & Conditions:", 14, finalY + 20);
+        doc.setFont('helvetica', 'normal');
+        const termsLines = doc.splitTextToSize(quotation.termsAndConditions, 180);
+        doc.text(termsLines, 14, finalY + 25);
+      }
+      
+      doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
   };
 
   return (
@@ -156,7 +231,7 @@ export function QuotationList() {
                             <DropdownMenuItem onClick={() => setSelectedQuotation(quotation)}>
                               <Eye className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDownloadPdf(quotation.id)}>
+                            <DropdownMenuItem onClick={() => handleDownloadPdf(quotation)}>
                               <DownloadIcon className="mr-2 h-4 w-4" /> Download PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => router.push(`/quotations/new?id=${quotation.id}`)}>
@@ -234,7 +309,7 @@ export function QuotationList() {
               For {selectedQuotation?.company?.name} - Dated: {selectedQuotation?.date}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4 text-sm">
+          <div className="grid gap-6 py-4 text-sm">
              <div className="space-y-2">
                 <h4 className="font-semibold">Client Information</h4>
                 <p><strong>Company:</strong> {selectedQuotation?.company?.name}</p>
@@ -271,11 +346,18 @@ export function QuotationList() {
                     </TableBody>
                 </Table>
              </div>
-             <div className="flex justify-end pt-4">
-                <div className="text-lg font-bold">
-                    Grand Total: {formatCurrency(selectedQuotation?.grandTotal || 0)}
+             <div className="flex justify-end pt-4 font-bold text-lg">
+                <div className="flex justify-between w-1/3">
+                    <span>Grand Total:</span>
+                    <span>{formatCurrency(selectedQuotation?.grandTotal || 0)}</span>
                 </div>
              </div>
+             {selectedQuotation?.termsAndConditions && (
+                <div className="space-y-2 pt-4 border-t">
+                    <h4 className="font-semibold">Terms & Conditions</h4>
+                    <p className="text-xs whitespace-pre-wrap">{selectedQuotation?.termsAndConditions}</p>
+                </div>
+             )}
           </div>
         </DialogContent>
       </Dialog>

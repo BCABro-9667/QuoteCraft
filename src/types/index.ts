@@ -33,4 +33,5 @@ export interface Quotation {
   company?: Company;
   products: Product[];
   grandTotal: number;
+  termsAndConditions: string;
 }

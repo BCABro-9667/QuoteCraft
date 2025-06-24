@@ -19,6 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormMessage,
+  } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,10 +36,11 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { mockCompanies, mockQuotations } from '@/data/mock';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Company, Product, Quotation, QuantityType } from '@/types';
+import type { Company, Product, Quotation } from '@/types';
 import { quantityTypes } from '@/types';
 import { formatCurrency, generateQuotationNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -53,9 +61,15 @@ const quotationSchema = z.object({
       price: z.number(),
       total: z.number()
   })).min(1, "Please add at least one product"),
+  termsAndConditions: z.string().optional(),
 });
 
 type QuotationFormValues = z.infer<typeof quotationSchema>;
+
+const predefinedTerms = `1. Prices are exclusive of GST.
+2. Payment: 50% advance, 50% on delivery.
+3. This quotation is valid for 30 days.
+4. Delivery within 15 working days of advance payment.`;
 
 export function QuotationCreator() {
   const [companies] = useLocalStorage<Company[]>('companies', mockCompanies);
@@ -71,6 +85,7 @@ export function QuotationCreator() {
     defaultValues: {
       companyId: '',
       products: [],
+      termsAndConditions: predefinedTerms,
     },
   });
 
@@ -84,7 +99,7 @@ export function QuotationCreator() {
   }, [quotations]);
 
   const handleCompanyChange = (companyId: string) => {
-    form.setValue('companyId', companyId);
+    form.setValue('companyId', companyId, { shouldValidate: true });
     const company = companies.find((c) => c.id === companyId);
     setSelectedCompany(company || null);
   };
@@ -110,6 +125,7 @@ export function QuotationCreator() {
       companyId: data.companyId,
       products: data.products,
       grandTotal,
+      termsAndConditions: data.termsAndConditions || '',
     };
     setQuotations([...quotations, newQuotation]);
     toast({ title: "Success!", description: "Quotation created successfully." });
@@ -117,133 +133,165 @@ export function QuotationCreator() {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Client Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Select onValueChange={handleCompanyChange} value={form.watch('companyId')}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a company" />
-              </SelectTrigger>
-              <SelectContent>
-                {companies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.companyId && <p className="text-sm font-medium text-destructive">{form.formState.errors.companyId.message}</p>}
+    <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-1">
+            <CardHeader>
+                <CardTitle>Client Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <FormField
+                    control={form.control}
+                    name="companyId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <Select onValueChange={handleCompanyChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a company" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {companies.map((company) => (
+                                    <SelectItem key={company.id} value={company.id}>
+                                    {company.name}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
-            {selectedCompany && (
-              <div className="text-sm text-muted-foreground space-y-2 border p-3 rounded-md">
-                <p><strong>Address:</strong> {selectedCompany.address}</p>
-                <p><strong>Email:</strong> {selectedCompany.email}</p>
-                <p><strong>Phone:</strong> {selectedCompany.phone}</p>
-                <p><strong>GSTIN:</strong> {selectedCompany.gstin}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Quotation Details</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">Quotation Number</label>
-              <Input value={quotationNumber} readOnly disabled />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Quotation Date</label>
-              <Input value={new Date().toLocaleDateString('en-CA')} readOnly disabled />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                {selectedCompany && (
+                <div className="text-sm text-muted-foreground space-y-2 border p-3 rounded-md">
+                    <p><strong>Address:</strong> {selectedCompany.address}</p>
+                    <p><strong>Email:</strong> {selectedCompany.email}</p>
+                    <p><strong>Phone:</strong> {selectedCompany.phone}</p>
+                    <p><strong>GSTIN:</strong> {selectedCompany.gstin}</p>
+                </div>
+                )}
+            </CardContent>
+            </Card>
+            <Card className="lg:col-span-2">
+            <CardHeader>
+                <CardTitle>Quotation Details</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+                <div>
+                <label className="text-sm font-medium">Quotation Number</label>
+                <Input value={quotationNumber} readOnly disabled />
+                </div>
+                <div>
+                <label className="text-sm font-medium">Quotation Date</label>
+                <Input value={new Date().toLocaleDateString('en-CA')} readOnly disabled />
+                </div>
+            </CardContent>
+            </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-                <CardTitle>Products</CardTitle>
-                <CardDescription>Add products to the quotation.</CardDescription>
+        <Card>
+            <CardHeader>
+            <div className="flex justify-between items-center">
+                <div>
+                    <CardTitle>Products</CardTitle>
+                    <CardDescription>Add products to the quotation.</CardDescription>
+                </div>
+                <Button type="button" onClick={() => setProductDialogOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+                </Button>
             </div>
-            <Button type="button" onClick={() => setProductDialogOpen(true)}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add Product
-            </Button>
-          </div>
-          {form.formState.errors.products && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.products.message}</p>}
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Sr.</TableHead>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>HSN</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fields.map((field, index) => (
-                  <TableRow key={field.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{field.name}</TableCell>
-                    <TableCell>{field.model}</TableCell>
-                    <TableCell>{field.hsn}</TableCell>
-                    <TableCell>{field.quantity} {field.quantityType}</TableCell>
-                    <TableCell>{formatCurrency(field.price)}</TableCell>
-                    <TableCell>{formatCurrency(field.total)}</TableCell>
-                    <TableCell>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                 {fields.length === 0 && (
+            {form.formState.errors.products && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.products.message}</p>}
+            </CardHeader>
+            <CardContent>
+            <div className="overflow-x-auto">
+                <Table>
+                <TableHeader>
                     <TableRow>
-                        <TableCell colSpan={8} className="text-center h-24">
-                            No products added yet.
+                    <TableHead>Sr.</TableHead>
+                    <TableHead>Product Name</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>HSN</TableHead>
+                    <TableHead>Qty</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Action</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {fields.map((field, index) => (
+                    <TableRow key={field.id}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>{field.name}</TableCell>
+                        <TableCell>{field.model}</TableCell>
+                        <TableCell>{field.hsn}</TableCell>
+                        <TableCell>{field.quantity} {field.quantityType}</TableCell>
+                        <TableCell>{formatCurrency(field.price)}</TableCell>
+                        <TableCell>{formatCurrency(field.total)}</TableCell>
+                        <TableCell>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                         </TableCell>
                     </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-        {fields.length > 0 && (
-            <CardFooter className="flex flex-col items-end gap-2">
-                <Separator />
-                <div className="w-full md:w-1/3 mt-4">
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Grand Total</span>
-                        <span>{formatCurrency(grandTotal)}</span>
+                    ))}
+                    {fields.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={8} className="text-center h-24">
+                                No products added yet.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+                </Table>
+            </div>
+            </CardContent>
+            {fields.length > 0 && (
+                <CardFooter className="flex flex-col items-end gap-2">
+                    <Separator />
+                    <div className="w-full md:w-1/3 mt-4">
+                        <div className="flex justify-between font-bold text-lg">
+                            <span>Grand Total</span>
+                            <span>{formatCurrency(grandTotal)}</span>
+                        </div>
                     </div>
-                </div>
-            </CardFooter>
-        )}
-      </Card>
+                </CardFooter>
+            )}
+        </Card>
 
-      <div className="flex justify-end gap-4">
-        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-        <Button type="submit">Create Quotation</Button>
-      </div>
+        <Card>
+            <CardHeader>
+                <CardTitle>Terms &amp; Conditions</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <FormField
+                    control={form.control}
+                    name="termsAndConditions"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormControl>
+                                <Textarea {...field} rows={6} placeholder="Enter terms and conditions..." />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </Card>
 
-      <ProductDialog 
-        isOpen={isProductDialogOpen} 
-        onClose={() => setProductDialogOpen(false)} 
-        onAddProduct={addProduct}
-      />
-    </form>
+        <div className="flex justify-end gap-4">
+            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+            <Button type="submit">Create Quotation</Button>
+        </div>
+
+        <ProductDialog 
+            isOpen={isProductDialogOpen} 
+            onClose={() => setProductDialogOpen(false)} 
+            onAddProduct={addProduct}
+        />
+        </form>
+    </Form>
   );
 }

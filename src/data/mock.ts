@@ -1,5 +1,10 @@
 import type { Company, Quotation } from '@/types';
 
+const defaultTerms = `1. Price: The prices quoted are exclusive of GST.
+2. Payment: 50% advance payment, and the remaining 50% upon delivery.
+3. Validity: This quotation is valid for 30 days from the date of issue.
+4. Delivery: Delivery will be made within 15 working days after receipt of the advance payment.`;
+
 export const mockCompanies: Company[] = [
   {
     id: '1',
@@ -69,6 +74,7 @@ export const mockQuotations: Quotation[] = [
             { id: 'p2', srNo: 2, name: 'AI Software Suite', model: 'AI-S2', hsn: '8523', quantity: 1, quantityType: 'Set', price: 75000, total: 75000 },
         ],
         grandTotal: 375000,
+        termsAndConditions: defaultTerms,
     },
     {
         id: 'q2',
@@ -79,5 +85,6 @@ export const mockQuotations: Quotation[] = [
             { id: 'p3', srNo: 1, name: 'High-Tensile Steel Beams', model: 'HT-500', hsn: '7214', quantity: 50, quantityType: 'Kg', price: 120, total: 6000 },
         ],
         grandTotal: 6000,
+        termsAndConditions: defaultTerms,
     }
 ];
