@@ -44,7 +44,7 @@ import type { Company, Product, Quotation } from '@/types';
 import { quantityTypes } from '@/types';
 import { formatCurrency, generateQuotationNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Trash2, PlusCircle } from 'lucide-react';
 import { ProductDialog } from './product-dialog';
 
@@ -79,6 +79,9 @@ export function QuotationCreator() {
   const [isProductDialogOpen, setProductDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const quotationId = searchParams.get('id');
+  const isEditMode = !!quotationId;
 
   const form = useForm<QuotationFormValues>({
     resolver: zodResolver(quotationSchema),
@@ -94,15 +97,30 @@ export function QuotationCreator() {
     name: "products",
   });
 
-  useEffect(() => {
-    setQuotationNumber(generateQuotationNumber(quotations.length));
-  }, [quotations]);
-
-  const handleCompanyChange = (companyId: string) => {
+  const handleCompanyChange = useCallback((companyId: string) => {
     form.setValue('companyId', companyId, { shouldValidate: true });
     const company = companies.find((c) => c.id === companyId);
     setSelectedCompany(company || null);
-  };
+  }, [companies, form]);
+
+  useEffect(() => {
+    if (isEditMode && quotationId && quotations.length > 0) {
+      const quotationToEdit = quotations.find(q => q.id === quotationId);
+      if (quotationToEdit) {
+        form.reset(quotationToEdit);
+        handleCompanyChange(quotationToEdit.companyId);
+        setQuotationNumber(quotationToEdit.quotationNumber);
+      }
+    } else {
+      form.reset({
+        companyId: '',
+        products: [],
+        termsAndConditions: predefinedTerms,
+      });
+      setSelectedCompany(null);
+      setQuotationNumber(generateQuotationNumber(quotations.length));
+    }
+  }, [quotationId, quotations, companies, form, isEditMode, handleCompanyChange]);
 
   const addProduct = useCallback((product: Omit<Product, 'id' | 'srNo' | 'total'>) => {
     const newProduct: Product = {
@@ -118,19 +136,38 @@ export function QuotationCreator() {
   const grandTotal = fields.reduce((acc, product) => acc + product.total, 0);
 
   const onSubmit = (data: QuotationFormValues) => {
-    const newQuotation: Quotation = {
-      id: new Date().getTime().toString(),
-      quotationNumber,
-      date: new Date().toLocaleDateString('en-CA'),
-      companyId: data.companyId,
-      products: data.products,
-      grandTotal,
-      termsAndConditions: data.termsAndConditions || '',
-    };
-    setQuotations([...quotations, newQuotation]);
-    toast({ title: "Success!", description: "Quotation created successfully." });
+    if (isEditMode && quotationId) {
+        const originalQuotation = quotations.find(q => q.id === quotationId);
+        const updatedQuotation: Quotation = {
+            id: quotationId,
+            quotationNumber,
+            date: originalQuotation?.date || new Date().toLocaleDateString('en-CA'),
+            companyId: data.companyId,
+            products: data.products,
+            grandTotal,
+            termsAndConditions: data.termsAndConditions || '',
+        };
+        setQuotations(quotations.map(q => (q.id === quotationId ? updatedQuotation : q)));
+        toast({ title: "Success!", description: "Quotation updated successfully." });
+    } else {
+        const newQuotation: Quotation = {
+            id: new Date().getTime().toString(),
+            quotationNumber,
+            date: new Date().toLocaleDateString('en-CA'),
+            companyId: data.companyId,
+            products: data.products,
+            grandTotal,
+            termsAndConditions: data.termsAndConditions || '',
+        };
+        setQuotations([...quotations, newQuotation]);
+        toast({ title: "Success!", description: "Quotation created successfully." });
+    }
     router.push('/quotations');
   };
+  
+  const quotationDate = isEditMode
+    ? quotations.find(q => q.id === quotationId)?.date || new Date().toLocaleDateString('en-CA')
+    : new Date().toLocaleDateString('en-CA');
 
   return (
     <Form {...form}>
@@ -146,7 +183,7 @@ export function QuotationCreator() {
                     name="companyId"
                     render={({ field }) => (
                         <FormItem>
-                            <Select onValueChange={handleCompanyChange} defaultValue={field.value}>
+                            <Select onValueChange={handleCompanyChange} value={field.value}>
                                 <FormControl>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a company" />
@@ -186,7 +223,7 @@ export function QuotationCreator() {
                 </div>
                 <div>
                 <label className="text-sm font-medium">Quotation Date</label>
-                <Input value={new Date().toLocaleDateString('en-CA')} readOnly disabled />
+                <Input value={quotationDate} readOnly disabled />
                 </div>
             </CardContent>
             </Card>
@@ -283,7 +320,7 @@ export function QuotationCreator() {
 
         <div className="flex justify-end gap-4">
             <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">Create Quotation</Button>
+            <Button type="submit">{isEditMode ? 'Update Quotation' : 'Create Quotation'}</Button>
         </div>
 
         <ProductDialog 
