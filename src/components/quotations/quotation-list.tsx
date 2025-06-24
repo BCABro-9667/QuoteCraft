@@ -42,8 +42,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { mockQuotations, mockCompanies } from '@/data/mock';
-import type { Quotation } from '@/types';
+import { mockQuotations, mockCompanies, mockUserProfile } from '@/data/mock';
+import type { Quotation, UserProfile } from '@/types';
 import {
   PlusCircle,
   Search,
@@ -66,6 +66,7 @@ const ITEMS_PER_PAGE = 5;
 export function QuotationList() {
   const [quotations, setQuotations] = useLocalStorage<Quotation[]>('quotations', mockQuotations);
   const [companies] = useLocalStorage('companies', mockCompanies);
+  const [userProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
@@ -117,9 +118,9 @@ export function QuotationList() {
       doc.text("Quotation", 105, 20, { align: 'center' });
   
       doc.setFontSize(10);
-      doc.text("QuoteCraft Inc.", 14, 30);
-      doc.text("123 AI Avenue, Tech City, 560001", 14, 35);
-      doc.text("contact@quotecraft.com", 14, 40);
+      doc.text(userProfile.companyName, 14, 30);
+      doc.text(userProfile.address, 14, 35);
+      doc.text(userProfile.email, 14, 40);
   
       doc.text(`Quotation No: ${quotation.quotationNumber}`, 200, 30, { align: 'right' });
       doc.text(`Date: ${new Date(quotation.date).toLocaleDateString('en-GB')}`, 200, 35, { align: 'right' });

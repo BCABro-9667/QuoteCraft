@@ -1,4 +1,4 @@
-import type { Company, Quotation } from '@/types';
+import type { Company, Quotation, UserProfile } from '@/types';
 
 const defaultTerms = `1. Price: The prices quoted are exclusive of GST.
 2. Payment: 50% advance payment, and the remaining 50% upon delivery.
@@ -62,6 +62,20 @@ export const mockCompanies: Company[] = [
     remarks: 'Cutting-edge electronic devices.',
   },
 ];
+
+export const mockUserProfile: UserProfile = {
+    id: 'user-profile',
+    companyName: 'QuoteCraft Inc.',
+    logoUrl: '',
+    email: 'contact@quotecraft.com',
+    website: 'https://quotecraft.com',
+    phone: '022-12345678',
+    mobile: '9988776655',
+    whatsapp: '9988776655',
+    address: '123 AI Avenue, Tech City, Mumbai, 400001',
+    gstin: '27AAAAA0000A1Z5',
+    quotationPrefix: 'QC',
+};
 
 export const mockQuotations: Quotation[] = [
     {

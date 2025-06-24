@@ -38,9 +38,9 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { mockCompanies, mockQuotations } from '@/data/mock';
+import { mockCompanies, mockQuotations, mockUserProfile } from '@/data/mock';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Company, Product, Quotation } from '@/types';
+import type { Company, Product, Quotation, UserProfile } from '@/types';
 import { quantityTypes } from '@/types';
 import { formatCurrency, generateQuotationNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -74,6 +74,7 @@ const predefinedTerms = `1. Prices are exclusive of GST.
 export function QuotationCreator() {
   const [companies] = useLocalStorage<Company[]>('companies', mockCompanies);
   const [quotations, setQuotations] = useLocalStorage<Quotation[]>('quotations', mockQuotations);
+  const [userProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [quotationNumber, setQuotationNumber] = useState('');
   const [isProductDialogOpen, setProductDialogOpen] = useState(false);
@@ -118,9 +119,9 @@ export function QuotationCreator() {
         termsAndConditions: predefinedTerms,
       });
       setSelectedCompany(null);
-      setQuotationNumber(generateQuotationNumber(quotations.length));
+      setQuotationNumber(generateQuotationNumber(userProfile.quotationPrefix, quotations.length));
     }
-  }, [quotationId, quotations, companies, form, isEditMode, handleCompanyChange]);
+  }, [quotationId, quotations, companies, form, isEditMode, handleCompanyChange, userProfile]);
 
   const addProduct = useCallback((product: Omit<Product, 'id' | 'srNo' | 'total'>) => {
     const newProduct: Product = {

@@ -12,10 +12,10 @@ export function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export function generateQuotationNumber(lastQuotationId: number): string {
+export function generateQuotationNumber(prefix: string, lastQuotationId: number): string {
     const currentYear = new Date().getFullYear();
     const nextYear = String(currentYear + 1).slice(-2);
     const financialYear = `${currentYear}-${nextYear}`;
     const newId = String(lastQuotationId + 1).padStart(2, '0');
-    return `ET/${financialYear}/${newId}`;
+    return `${prefix}/${financialYear}/${newId}`;
 }

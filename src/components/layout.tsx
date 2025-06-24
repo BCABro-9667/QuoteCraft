@@ -13,7 +13,7 @@ import {
 import { Header } from '@/components/header';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Building, FileText, Bot } from 'lucide-react';
+import { Home, Building, FileText, Bot, User } from 'lucide-react';
 
 const Logo = () => (
   <div className="flex items-center gap-2">
@@ -26,6 +26,7 @@ const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
   { href: '/companies', label: 'Companies', icon: Building },
   { href: '/quotations', label: 'Quotations', icon: FileText },
+  { href: '/profile', label: 'My Profile', icon: User },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

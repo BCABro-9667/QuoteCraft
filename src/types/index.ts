@@ -10,6 +10,20 @@ export interface Company {
   remarks: string;
 }
 
+export interface UserProfile {
+  id: string;
+  companyName: string;
+  logoUrl: string;
+  email: string;
+  website: string;
+  phone: string;
+  mobile: string;
+  whatsapp: string;
+  address: string;
+  gstin: string;
+  quotationPrefix: string;
+}
+
 export const quantityTypes = ['Set', 'Nos', 'Piece', 'Pair', 'Kg', 'Meter'] as const;
 export type QuantityType = (typeof quantityTypes)[number];
 
