@@ -43,7 +43,7 @@ export function ProfileForm() {
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: profile,
+    defaultValues: mockUserProfile,
     mode: 'onChange',
   });
 
@@ -53,7 +53,7 @@ export function ProfileForm() {
     if (profile) {
       form.reset(profile);
     }
-  }, [profile, form]);
+  }, [profile, form.reset]);
 
 
   const onSubmit = (data: ProfileFormValues) => {
