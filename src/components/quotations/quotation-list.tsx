@@ -49,6 +49,8 @@ import {
     SelectTrigger,
     SelectValue,
   } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { mockQuotations, mockCompanies, mockUserProfile } from '@/data/mock';
 import type { Quotation, UserProfile, QuotationStatus } from '@/types';
 import { quotationStatuses } from '@/types';
@@ -62,14 +64,22 @@ import {
   FileDown as DownloadIcon,
   ChevronLeft,
   ChevronRight,
+  Calendar as CalendarIcon,
+  FilterX,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useLocalStorage from '@/hooks/use-local-storage';
-import { formatCurrency, formatNumberForPdf } from '@/lib/utils';
+import { formatCurrency, formatNumberForPdf, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { format, isSameDay } from 'date-fns';
 
 const ITEMS_PER_PAGE = 5;
+
+const months = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+];
 
 export function QuotationList() {
   const [quotations, setQuotations] = useLocalStorage<Quotation[]>('quotations', mockQuotations);
@@ -78,6 +88,10 @@ export function QuotationList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -89,16 +103,38 @@ export function QuotationList() {
     })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [quotations, companies]);
 
+  const uniqueLocations = useMemo(() => {
+    const locations = new Set(enrichedQuotations.map(q => q.company?.location).filter(Boolean));
+    return Array.from(locations as string[]);
+  }, [enrichedQuotations]);
+
+  const uniqueCompanies = useMemo(() => {
+    const companyMap = new Map<string, { id: string; name: string }>();
+    enrichedQuotations.forEach(q => {
+      if (q.company && !companyMap.has(q.company.id)) {
+        companyMap.set(q.company.id, { id: q.company.id, name: q.company.name });
+      }
+    });
+    return Array.from(companyMap.values());
+  }, [enrichedQuotations]);
+
   const filteredQuotations = useMemo(() => {
-    const lowercasedTerm = searchTerm.toLowerCase();
-    return enrichedQuotations.filter(
-      (q) =>
+    return enrichedQuotations.filter(q => {
+      const lowercasedTerm = searchTerm.toLowerCase();
+      const searchMatch =
         q.quotationNumber.toLowerCase().includes(lowercasedTerm) ||
-        q.company?.name.toLowerCase().includes(lowercasedTerm) ||
-        q.company?.email?.toLowerCase().includes(lowercasedTerm) ||
-        q.company?.location?.toLowerCase().includes(lowercasedTerm)
-    );
-  }, [enrichedQuotations, searchTerm]);
+        (q.company?.name.toLowerCase().includes(lowercasedTerm) ?? false) ||
+        (q.company?.email?.toLowerCase().includes(lowercasedTerm) ?? false) ||
+        (q.company?.location?.toLowerCase().includes(lowercasedTerm) ?? false);
+      
+      const monthMatch = selectedMonth ? format(new Date(q.date), 'MMMM') === selectedMonth : true;
+      const locationMatch = selectedLocation ? q.company?.location === selectedLocation : true;
+      const companyMatch = selectedCompany ? q.company?.id === selectedCompany : true;
+      const dateMatch = selectedDate ? isSameDay(new Date(q.date), selectedDate) : true;
+
+      return searchMatch && monthMatch && locationMatch && companyMatch && dateMatch;
+    });
+  }, [enrichedQuotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
 
   const paginatedQuotations = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -106,6 +142,15 @@ export function QuotationList() {
   }, [filteredQuotations, currentPage]);
 
   const totalPages = Math.ceil(filteredQuotations.length / ITEMS_PER_PAGE);
+  
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedMonth('');
+    setSelectedLocation('');
+    setSelectedCompany('');
+    setSelectedDate(undefined);
+    setCurrentPage(1);
+  };
 
   const handleDelete = (quotationId: string) => {
     setQuotations(quotations.filter((q) => q.id !== quotationId));
@@ -344,22 +389,69 @@ export function QuotationList() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="relative w-full md:w-1/3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by number, company, email..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <Button asChild>
-            <Link href="/quotations/new">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Create Quotation
-            </Link>
-          </Button>
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="relative w-full md:w-1/3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                    placeholder="Search by number, company, email..."
+                    className="pl-9"
+                    value={searchTerm}
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                    />
+                </div>
+                <Button asChild>
+                    <Link href="/quotations/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create Quotation
+                    </Link>
+                </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                 <Select value={selectedMonth} onValueChange={(value) => { setSelectedMonth(value === 'all' ? '' : value); setCurrentPage(1); }}>
+                    <SelectTrigger><SelectValue placeholder="Filter by Month" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Months</SelectItem>
+                        {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+
+                <Select value={selectedLocation} onValueChange={(value) => { setSelectedLocation(value === 'all' ? '' : value); setCurrentPage(1); }}>
+                    <SelectTrigger><SelectValue placeholder="Filter by Location" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {uniqueLocations.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+
+                <Select value={selectedCompany} onValueChange={(value) => { setSelectedCompany(value === 'all' ? '' : value); setCurrentPage(1); }}>
+                    <SelectTrigger><SelectValue placeholder="Filter by Company" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Companies</SelectItem>
+                        {uniqueCompanies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !selectedDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {selectedDate ? format(selectedDate, "PPP") : <span>Filter by Date</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={selectedDate} onSelect={(date) => { setSelectedDate(date); setCurrentPage(1); }} initialFocus />
+                    </PopoverContent>
+                </Popover>
+
+                <Button variant="ghost" onClick={clearFilters} className="flex items-center gap-2">
+                    <FilterX className="h-4 w-4" />
+                    <span>Clear Filters</span>
+                </Button>
+            </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -488,7 +580,7 @@ export function QuotationList() {
           <DialogHeader>
             <DialogTitle>Quotation Details: {selectedQuotation?.quotationNumber}</DialogTitle>
             <DialogDescription>
-              For {selectedQuotation?.company?.name} - Dated: {selectedQuotation?.date}
+              For {selectedQuotation?.company?.name} - Dated: {selectedQuotation?.date ? new Date(selectedQuotation.date).toLocaleDateString('en-GB') : ''}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4 text-sm">
