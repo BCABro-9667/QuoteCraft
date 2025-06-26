@@ -1,4 +1,4 @@
-import type { Company, Quotation, UserProfile } from '@/types';
+import type { Company, Quotation, UserProfile, QuotationStatus } from '@/types';
 
 const defaultTerms = `Payment: 100% Advance
 Tax: 18% GST
@@ -93,6 +93,9 @@ export const mockQuotations: Quotation[] = [
         ],
         grandTotal: 154500,
         termsAndConditions: defaultTerms,
+        referencedBy: 'Mr. Fiyaz Ahmed',
+        createdBy: 'Sales Team',
+        progress: 'Pending',
     },
     {
         id: 'q2',
@@ -104,5 +107,8 @@ export const mockQuotations: Quotation[] = [
         ],
         grandTotal: 6000,
         termsAndConditions: defaultTerms,
+        referencedBy: 'Rohan Verma',
+        createdBy: 'Admin',
+        progress: 'Complete',
     }
 ];

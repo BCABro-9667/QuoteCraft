@@ -39,6 +39,9 @@ export interface Product {
   total: number;
 }
 
+export const quotationStatuses = ['Pending', 'Complete'] as const;
+export type QuotationStatus = (typeof quotationStatuses)[number];
+
 export interface Quotation {
   id: string;
   quotationNumber: string;
@@ -48,4 +51,7 @@ export interface Quotation {
   products: Product[];
   grandTotal: number;
   termsAndConditions: string;
+  referencedBy: string;
+  createdBy: string;
+  progress: QuotationStatus;
 }

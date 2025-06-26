@@ -24,6 +24,7 @@ import {
     FormControl,
     FormField,
     FormItem,
+    FormLabel,
     FormMessage,
   } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -40,8 +41,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { mockCompanies, mockQuotations, mockUserProfile } from '@/data/mock';
 import useLocalStorage from '@/hooks/use-local-storage';
-import type { Company, Product, Quotation, UserProfile } from '@/types';
-import { quantityTypes } from '@/types';
+import type { Company, Product, Quotation, UserProfile, QuotationStatus } from '@/types';
+import { quantityTypes, quotationStatuses } from '@/types';
 import { formatCurrency, generateQuotationNumber } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -62,6 +63,9 @@ const quotationSchema = z.object({
       total: z.number()
   })).min(1, "Please add at least one product"),
   termsAndConditions: z.string().optional(),
+  referencedBy: z.string().min(1, "Referenced by is required"),
+  createdBy: z.string().min(1, "Created by is required"),
+  progress: z.enum(quotationStatuses),
 });
 
 type QuotationFormValues = z.infer<typeof quotationSchema>;
@@ -94,6 +98,9 @@ export function QuotationCreator() {
       companyId: '',
       products: [],
       termsAndConditions: predefinedTerms,
+      referencedBy: '',
+      createdBy: '',
+      progress: 'Pending',
     },
   });
 
@@ -121,6 +128,9 @@ export function QuotationCreator() {
         companyId: '',
         products: [],
         termsAndConditions: predefinedTerms,
+        referencedBy: '',
+        createdBy: '',
+        progress: 'Pending',
       });
       setSelectedCompany(null);
       setQuotationNumber(generateQuotationNumber(userProfile.quotationPrefix, quotations.length));
@@ -151,6 +161,9 @@ export function QuotationCreator() {
             products: data.products,
             grandTotal,
             termsAndConditions: data.termsAndConditions || '',
+            referencedBy: data.referencedBy,
+            createdBy: data.createdBy,
+            progress: data.progress,
         };
         setQuotations(quotations.map(q => (q.id === quotationId ? updatedQuotation : q)));
         toast({ title: "Success!", description: "Quotation updated successfully." });
@@ -163,6 +176,9 @@ export function QuotationCreator() {
             products: data.products,
             grandTotal,
             termsAndConditions: data.termsAndConditions || '',
+            referencedBy: data.referencedBy,
+            createdBy: data.createdBy,
+            progress: data.progress,
         };
         setQuotations([...quotations, newQuotation]);
         toast({ title: "Success!", description: "Quotation created successfully." });
@@ -233,6 +249,64 @@ export function QuotationCreator() {
             </CardContent>
             </Card>
         </div>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Additional Details</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                    control={form.control}
+                    name="referencedBy"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Referenced By</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="createdBy"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Created By</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Sales Team" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="progress"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Progress</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {quotationStatuses.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {status}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </Card>
 
         <Card>
             <CardHeader>

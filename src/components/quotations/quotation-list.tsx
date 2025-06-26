@@ -42,8 +42,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+  } from '@/components/ui/select';
 import { mockQuotations, mockCompanies, mockUserProfile } from '@/data/mock';
-import type { Quotation, UserProfile } from '@/types';
+import type { Quotation, UserProfile, QuotationStatus } from '@/types';
+import { quotationStatuses } from '@/types';
 import {
   PlusCircle,
   Search,
@@ -103,6 +111,13 @@ export function QuotationList() {
     setQuotations(quotations.filter((q) => q.id !== quotationId));
   };
   
+  const handleProgressChange = (quotationId: string, newProgress: QuotationStatus) => {
+    setQuotations(quotations.map(q => 
+      q.id === quotationId ? { ...q, progress: newProgress } : q
+    ));
+    toast({ title: "Status Updated", description: "Quotation progress has been updated." });
+  };
+
   const handleDownloadPdf = (quotation: Quotation) => {
     if (!quotation.company) {
       toast({
@@ -356,6 +371,7 @@ export function QuotationList() {
                 <TableHead>Company Name</TableHead>
                 <TableHead className="hidden md:table-cell">Email</TableHead>
                 <TableHead className="hidden lg:table-cell">Location</TableHead>
+                <TableHead>Progress</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -367,6 +383,23 @@ export function QuotationList() {
                     <TableCell>{quotation.company?.name || 'N/A'}</TableCell>
                     <TableCell className="hidden md:table-cell">{quotation.company?.email || 'N/A'}</TableCell>
                     <TableCell className="hidden lg:table-cell">{quotation.company?.location || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={quotation.progress}
+                        onValueChange={(value) => handleProgressChange(quotation.id, value as QuotationStatus)}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue placeholder="Set status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {quotationStatuses.map(status => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell>
                       <AlertDialog>
                         <DropdownMenu>
@@ -414,7 +447,7 @@ export function QuotationList() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
+                  <TableCell colSpan={6} className="text-center h-24">
                     No quotations found.
                   </TableCell>
                 </TableRow>
@@ -465,6 +498,12 @@ export function QuotationList() {
                 <p><strong>Address:</strong> {selectedQuotation?.company?.address}</p>
                 <p><strong>Email:</strong> {selectedQuotation?.company?.email}</p>
                 <p><strong>GSTIN:</strong> {selectedQuotation?.company?.gstin}</p>
+             </div>
+             <div className="space-y-2">
+                <h4 className="font-semibold">Additional Details</h4>
+                <p><strong>Referenced By:</strong> {selectedQuotation?.referencedBy}</p>
+                <p><strong>Created By:</strong> {selectedQuotation?.createdBy}</p>
+                <p><strong>Progress:</strong> {selectedQuotation?.progress}</p>
              </div>
              <div className="space-y-2">
                 <h4 className="font-semibold">Products</h4>
