@@ -39,17 +39,22 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { mockCompanies, mockQuotations, mockUserProfile } from '@/data/mock';
 import useLocalStorage from '@/hooks/use-local-storage';
 import type { Company, Product, Quotation, UserProfile, QuotationStatus } from '@/types';
 import { quantityTypes, quotationStatuses } from '@/types';
-import { formatCurrency, generateQuotationNumber } from '@/lib/utils';
+import { formatCurrency, generateQuotationNumber, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Trash2, PlusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 import { ProductDialog } from './product-dialog';
 
 const quotationSchema = z.object({
+  quotationNumber: z.string().min(1, "Quotation number is required"),
+  date: z.string({ required_error: "A quotation date is required." }),
   companyId: z.string().min(1, 'Please select a company'),
   products: z.array(z.object({
       id: z.string(),
@@ -84,7 +89,6 @@ export function QuotationCreator() {
   const [quotations, setQuotations] = useLocalStorage<Quotation[]>('quotations', mockQuotations);
   const [userProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [quotationNumber, setQuotationNumber] = useState('');
   const [isProductDialogOpen, setProductDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -95,6 +99,8 @@ export function QuotationCreator() {
   const form = useForm<QuotationFormValues>({
     resolver: zodResolver(quotationSchema),
     defaultValues: {
+      quotationNumber: '',
+      date: new Date().toLocaleDateString('en-CA'),
       companyId: '',
       products: [],
       termsAndConditions: predefinedTerms,
@@ -121,21 +127,21 @@ export function QuotationCreator() {
       if (quotationToEdit) {
         form.reset(quotationToEdit);
         handleCompanyChange(quotationToEdit.companyId);
-        setQuotationNumber(quotationToEdit.quotationNumber);
       }
     } else {
-      form.reset({
-        companyId: '',
-        products: [],
-        termsAndConditions: predefinedTerms,
-        referencedBy: '',
-        createdBy: '',
-        progress: 'Pending',
-      });
-      setSelectedCompany(null);
-      setQuotationNumber(generateQuotationNumber(userProfile.quotationPrefix, quotations.length));
+        form.reset({
+            quotationNumber: generateQuotationNumber(userProfile.quotationPrefix, quotations.length),
+            date: new Date().toLocaleDateString('en-CA'),
+            companyId: '',
+            products: [],
+            termsAndConditions: predefinedTerms,
+            referencedBy: '',
+            createdBy: '',
+            progress: 'Pending',
+        });
+        setSelectedCompany(null);
     }
-  }, [quotationId, quotations, companies, form, isEditMode, handleCompanyChange, userProfile]);
+  }, [quotationId, quotations, form, isEditMode, handleCompanyChange, userProfile]);
 
   const addProduct = useCallback((product: Omit<Product, 'id' | 'srNo' | 'total'>) => {
     const newProduct: Product = {
@@ -152,11 +158,10 @@ export function QuotationCreator() {
 
   const onSubmit = (data: QuotationFormValues) => {
     if (isEditMode && quotationId) {
-        const originalQuotation = quotations.find(q => q.id === quotationId);
         const updatedQuotation: Quotation = {
             id: quotationId,
-            quotationNumber,
-            date: originalQuotation?.date || new Date().toLocaleDateString('en-CA'),
+            quotationNumber: data.quotationNumber,
+            date: data.date,
             companyId: data.companyId,
             products: data.products,
             grandTotal,
@@ -170,8 +175,8 @@ export function QuotationCreator() {
     } else {
         const newQuotation: Quotation = {
             id: new Date().getTime().toString(),
-            quotationNumber,
-            date: new Date().toLocaleDateString('en-CA'),
+            quotationNumber: data.quotationNumber,
+            date: data.date,
             companyId: data.companyId,
             products: data.products,
             grandTotal,
@@ -186,10 +191,6 @@ export function QuotationCreator() {
     router.push('/quotations');
   };
   
-  const quotationDate = isEditMode
-    ? quotations.find(q => q.id === quotationId)?.date || new Date().toLocaleDateString('en-CA')
-    : new Date().toLocaleDateString('en-CA');
-
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -238,75 +239,60 @@ export function QuotationCreator() {
                 <CardTitle>Quotation Details</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4">
-                <div>
-                <label className="text-sm font-medium">Quotation Number</label>
-                <Input value={quotationNumber} readOnly disabled />
-                </div>
-                <div>
-                <label className="text-sm font-medium">Quotation Date</label>
-                <Input value={quotationDate} readOnly disabled />
-                </div>
+                <FormField
+                    control={form.control}
+                    name="quotationNumber"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Quotation Number</FormLabel>
+                            <FormControl>
+                                <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col pt-2">
+                             <FormLabel>Quotation Date</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(new Date(field.value), "PPP")
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={(date) => field.onChange(date?.toLocaleDateString('en-CA'))}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
             </CardContent>
             </Card>
         </div>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Additional Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                    control={form.control}
-                    name="referencedBy"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Referenced By</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="createdBy"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Created By</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Sales Team" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="progress"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Progress</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select status" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {quotationStatuses.map((status) => (
-                                        <SelectItem key={status} value={status}>
-                                            {status}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-        </Card>
 
         <Card>
             <CardHeader>
@@ -390,6 +376,64 @@ export function QuotationCreator() {
                             <FormControl>
                                 <Textarea {...field} rows={6} placeholder="Enter terms and conditions..." />
                             </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Additional Details</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                    control={form.control}
+                    name="referencedBy"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Referenced By</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="createdBy"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Created By</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Sales Team" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="progress"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Progress</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {quotationStatuses.map((status) => (
+                                        <SelectItem key={status} value={status}>
+                                            {status}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                             <FormMessage />
                         </FormItem>
                     )}
