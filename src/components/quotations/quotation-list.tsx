@@ -58,7 +58,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useLocalStorage from '@/hooks/use-local-storage';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatNumberForPdf } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 const ITEMS_PER_PAGE = 5;
@@ -104,78 +104,226 @@ export function QuotationList() {
   };
   
   const handleDownloadPdf = (quotation: Quotation) => {
-      if (!quotation.company) {
+    if (!quotation.company) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Company data is missing for this quotation.',
+      });
+      return;
+    }
+     if (!userProfile) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Company data is missing for this quotation.',
+          description: 'User profile data is not available.',
         });
         return;
       }
-      const doc = new jsPDF();
-      
-      doc.setFontSize(20);
-      doc.text("Quotation", 105, 20, { align: 'center' });
-  
-      doc.setFontSize(10);
-      doc.text(userProfile.companyName, 14, 30);
-      doc.text(userProfile.address, 14, 35);
-      doc.text(userProfile.email, 14, 40);
-  
-      doc.text(`Quotation No: ${quotation.quotationNumber}`, 200, 30, { align: 'right' });
-      doc.text(`Date: ${new Date(quotation.date).toLocaleDateString('en-GB')}`, 200, 35, { align: 'right' });
-  
-      doc.setFontSize(12);
-      doc.text("Bill To:", 14, 55);
-      doc.setFontSize(10);
-      doc.text(quotation.company.name, 14, 60);
-      doc.text(quotation.company.address, 14, 65);
-      doc.text(quotation.company.email, 14, 70);
-      doc.text(`GSTIN: ${quotation.company.gstin}`, 14, 75);
-  
-      autoTable(doc, {
-        startY: 85,
-        head: [['Sr.', 'Product Name', 'Model', 'HSN', 'Qty', 'Price', 'Total']],
-        body: quotation.products.map(p => [
-          p.srNo,
-          p.name,
-          p.model,
-          p.hsn,
-          `${p.quantity} ${p.quantityType}`,
-          formatCurrency(p.price),
-          formatCurrency(p.total)
-        ]),
-        headStyles: { fillColor: [38, 38, 38] },
+
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+    const orangeColor = '#F58220';
+
+    // --- Header ---
+    if (userProfile.logoUrl) {
+      try {
+        // Note: For external URLs, this might fail in browser due to CORS.
+        // A server-side proxy or base64 conversion is more robust.
+        doc.addImage(userProfile.logoUrl, 'PNG', 14, 12, 50, 15);
+      } catch (e) {
+        console.error("Error adding logo image:", e);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(userProfile.companyName, 14, 20);
+      }
+    } else {
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(userProfile.companyName, 14, 20);
+    }
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const headerRightX = pageWidth - 14;
+
+    const companyAddressText = userProfile.address || '';
+    const companyAddressLines = doc.splitTextToSize(companyAddressText, 80);
+    let rightHeaderY = 12;
+    doc.text(companyAddressLines, headerRightX, rightHeaderY, { align: 'right' });
+    rightHeaderY += companyAddressLines.length * 3.5;
+    
+    const contactInfo = [
+        userProfile.phone ? `Tel: ${userProfile.phone}` : '',
+        userProfile.email ? `Email: ${userProfile.email}`: '',
+        userProfile.website ? `URL: ${userProfile.website}`: '',
+        userProfile.gstin ? `GSTIN: ${userProfile.gstin}`: '',
+    ].filter(Boolean);
+    
+    contactInfo.forEach(line => {
+      doc.text(line, headerRightX, rightHeaderY, { align: 'right' });
+      rightHeaderY += 3.5;
+    })
+
+    doc.setDrawColor(245, 130, 32);
+    doc.setLineWidth(0.5);
+    doc.line(14, rightHeaderY, pageWidth - 14, rightHeaderY);
+    let currentY = rightHeaderY;
+
+    // --- Ref and Date ---
+    currentY += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Ref. No.', headerRightX - 25, currentY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0,0,0);
+    doc.text(quotation.quotationNumber, headerRightX, currentY, { align: 'right' });
+    
+    currentY += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date', headerRightX - 25, currentY, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(new Date(quotation.date).toLocaleDateString('en-GB'), headerRightX, currentY, { align: 'right' });
+    doc.setTextColor(0);
+
+    // --- Client Info ---
+    let clientY = currentY + 5;
+    const addClientInfo = (label: string, value: string | undefined) => {
+        if (!value) return;
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, 14, clientY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(orangeColor);
+        doc.text(value, 48, clientY);
+        doc.setTextColor(0);
+        clientY += 6;
+    }
+    addClientInfo('Company Name:', quotation.company.name);
+    addClientInfo('Contact Person:', quotation.company.contactPerson);
+    addClientInfo('Contact No.:', quotation.company.phone);
+    addClientInfo('Email id:', quotation.company.email);
+    currentY = clientY;
+
+    // --- Subject ---
+    currentY += 5;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Subject: Quotation', 14, currentY);
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.3);
+    doc.line(14, currentY + 1, 44, currentY + 1);
+
+    // --- Intro Text ---
+    currentY += 8;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Dear Sir,', 14, currentY);
+    currentY += 6;
+    const introText = 'This has reference to our discussion; after going through your requirements, we offer our best proposal as follow:';
+    const splitIntro = doc.splitTextToSize(introText, pageWidth - 28);
+    doc.text(splitIntro, 14, currentY);
+    currentY += (splitIntro.length * 5) + 3;
+
+    // --- Products Table ---
+    const tableBody = quotation.products.map(p => ([
+        p.srNo.toString(),
+        `${p.name}\n(Model No: ${p.model})`,
+        p.hsn,
+        `${String(p.quantity).padStart(2, '0')} ${p.quantityType}`,
+        formatNumberForPdf(p.price),
+        formatNumberForPdf(p.total),
+    ]));
+
+    autoTable(doc, {
+        startY: currentY,
+        head: [['Sr. No.', 'Description', 'HSN', 'Qty.', 'Unit Price', 'Amount']],
+        body: tableBody,
         theme: 'grid',
+        headStyles: {
+            fillColor: [245, 130, 32],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+        },
         styles: {
-            halign: 'right',
+            fontSize: 9,
+            cellPadding: 2.5,
+            valign: 'middle',
         },
         columnStyles: {
-            0: { halign: 'center' },
-            1: { halign: 'left' },
-            2: { halign: 'left' },
-            3: { halign: 'left' },
-            4: { halign: 'center' },
-        }
-      });
-  
-      const finalY = (doc as any).lastAutoTable.finalY;
-  
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text("Grand Total:", 145, finalY + 10);
-      doc.text(formatCurrency(quotation.grandTotal), 200, finalY + 10, { align: 'right' });
-      
-      if (quotation.termsAndConditions) {
+            0: { halign: 'center', cellWidth: 15 },
+            1: { halign: 'left', cellWidth: 60 },
+            2: { halign: 'center' },
+            3: { halign: 'center' },
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+        },
+    });
+
+    let finalY = (doc as any).lastAutoTable.finalY;
+
+    // --- Terms & Conditions ---
+    finalY += 10;
+    if (quotation.termsAndConditions) {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text("Terms & Conditions:", 14, finalY + 20);
-        doc.setFont('helvetica', 'normal');
-        const termsLines = doc.splitTextToSize(quotation.termsAndConditions, 180);
-        doc.text(termsLines, 14, finalY + 25);
-      }
-      
-      doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
+        doc.text('Terms & Conditions', 14, finalY);
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.3);
+        doc.line(14, finalY + 1, 50, finalY + 1);
+
+        finalY += 6;
+        doc.setFontSize(9);
+        
+        const terms = quotation.termsAndConditions.split('\n').map(line => {
+            const parts = line.split(':');
+            const key = (parts.shift() || '').trim();
+            const value = parts.join(':').trim();
+            return { key, value };
+        });
+        
+        terms.forEach(term => {
+            if (finalY > pageHeight - 40) {
+                doc.addPage();
+                finalY = 20;
+            }
+            if (term.key) {
+                doc.setFont('helvetica', 'normal');
+                doc.text(`• ${term.key}`, 18, finalY);
+                doc.text(':', 50, finalY);
+                doc.text(term.value, 55, finalY);
+                finalY += 5;
+            }
+        });
+    }
+    
+    // --- Closing ---
+    if (finalY > pageHeight - 60) {
+        doc.addPage();
+        finalY = 20;
+    }
+    finalY += 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Thank You.', 14, finalY);
+    finalY += 5;
+    doc.text('Regards', 14, finalY);
+
+    finalY += 15;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(245, 130, 32);
+    doc.text(`For ${userProfile.companyName.toUpperCase()}`, 14, finalY);
+    doc.setTextColor(0);
+
+    finalY += 20;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Authorized signature', 14, finalY);
+
+    // --- Footer Bar ---
+    doc.setFillColor(245, 130, 32);
+    doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+    
+    doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
   };
 
   return (

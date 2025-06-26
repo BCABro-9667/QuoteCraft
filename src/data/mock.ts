@@ -1,21 +1,25 @@
 import type { Company, Quotation, UserProfile } from '@/types';
 
-const defaultTerms = `1. Price: The prices quoted are exclusive of GST.
-2. Payment: 50% advance payment, and the remaining 50% upon delivery.
-3. Validity: This quotation is valid for 30 days from the date of issue.
-4. Delivery: Delivery will be made within 15 working days after receipt of the advance payment.`;
+const defaultTerms = `Payment: 100% Advance
+Tax: 18% GST
+Freight: Extra at actual
+Packing: Extra at actual
+Installation: Extra at actual
+Delivery: 2-3 Days confirmation of order with advance.
+Validity: 30 Days.
+Jurisdiction: All disputes will be referred to Faridabad, Jurisdiction on only`;
 
 export const mockCompanies: Company[] = [
   {
     id: '1',
-    name: 'Innovate Solutions',
-    address: '123 Tech Park, Silicon Valley',
-    location: 'Bangalore',
-    email: 'contact@innovate.com',
-    phone: '9876543210',
-    contactPerson: 'Arjun Mehra',
-    gstin: '29ABCDE1234F1Z5',
-    remarks: 'Leading provider of tech solutions.',
+    name: 'AveryTech Solutions',
+    address: 'Client Address, City, State, Pin',
+    location: 'Bengaluru',
+    email: 'fiyazahmed24@gmail.com',
+    phone: '+91 8073611905',
+    contactPerson: 'Mr. Fiyaz Ahmed',
+    gstin: 'CLIENTGSTINHERE',
+    remarks: 'From PDF example.',
   },
   {
     id: '2',
@@ -65,29 +69,29 @@ export const mockCompanies: Company[] = [
 
 export const mockUserProfile: UserProfile = {
     id: 'user-profile',
-    companyName: 'QuoteCraft Inc.',
-    logoUrl: '',
-    email: 'contact@quotecraft.com',
-    website: 'https://quotecraft.com',
-    phone: '022-12345678',
-    mobile: '9988776655',
-    whatsapp: '9988776655',
-    address: '123 AI Avenue, Tech City, Mumbai, 400001',
-    gstin: '27AAAAA0000A1Z5',
-    quotationPrefix: 'QC',
+    companyName: 'ESTOVIR TECHNOLOGIES',
+    logoUrl: 'https://fplogoimages.withfloats.com/tile/63b3e90ca4c3440001407fbd.png',
+    email: 'sales@estovir.in',
+    website: 'www.estovirsmt.com',
+    phone: '0124-4013575',
+    mobile: '9311225593',
+    whatsapp: '9311225593',
+    address: 'Plot No. 89, HSIIDC Industrial Estate, Sector-59, Faridabad - 121',
+    gstin: '06AANPP5476E1ZD',
+    quotationPrefix: 'ET',
 };
 
 export const mockQuotations: Quotation[] = [
     {
         id: 'q1',
-        quotationNumber: 'ET/2023-24/01',
-        date: '2023-10-15',
+        quotationNumber: 'ET/2024-25/0262',
+        date: '2024-07-09',
         companyId: '1',
         products: [
-            { id: 'p1', srNo: 1, name: 'Quantum Computer', model: 'QC-X1', hsn: '8471', quantity: 2, quantityType: 'Nos', price: 150000, total: 300000 },
-            { id: 'p2', srNo: 2, name: 'AI Software Suite', model: 'AI-S2', hsn: '8523', quantity: 1, quantityType: 'Set', price: 75000, total: 75000 },
+            { id: 'p1', srNo: 1, name: 'Automatic Loose Radial Lead Cutter', model: 'ARP 366', hsn: '84678990', quantity: 1, quantityType: 'Nos', price: 148000, total: 148000 },
+            { id: 'p2', srNo: 2, name: 'Universal Manual Pre-former', model: 'UMP 870', hsn: '84678990', quantity: 1, quantityType: 'Nos', price: 6500, total: 6500 },
         ],
-        grandTotal: 375000,
+        grandTotal: 154500,
         termsAndConditions: defaultTerms,
     },
     {

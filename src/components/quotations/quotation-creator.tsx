@@ -66,10 +66,14 @@ const quotationSchema = z.object({
 
 type QuotationFormValues = z.infer<typeof quotationSchema>;
 
-const predefinedTerms = `1. Prices are exclusive of GST.
-2. Payment: 50% advance, 50% on delivery.
-3. This quotation is valid for 30 days.
-4. Delivery within 15 working days of advance payment.`;
+const predefinedTerms = `Payment: 100% Advance
+Tax: 18% GST
+Freight: Extra at actual
+Packing: Extra at actual
+Installation: Extra at actual
+Delivery: 2-3 Days confirmation of order with advance.
+Validity: 30 Days.
+Jurisdiction: All disputes will be referred to Faridabad, Jurisdiction on only`;
 
 export function QuotationCreator() {
   const [companies] = useLocalStorage<Company[]>('companies', mockCompanies);
