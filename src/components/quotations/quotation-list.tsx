@@ -163,6 +163,31 @@ export function QuotationList() {
     toast({ title: "Status Updated", description: "Quotation progress has been updated." });
   };
 
+  const exportToCSV = () => {
+    const headers = 'Quotation Number,Date,Company Name,Location,Email,Grand Total,Progress\n';
+    const rows = filteredQuotations
+      .map(q => {
+        const companyName = q.company?.name.replace(/"/g, '""') || '';
+        const location = q.company?.location.replace(/"/g, '""') || '';
+        const email = q.company?.email?.replace(/"/g, '""') || '';
+        return `"${q.quotationNumber}","${new Date(q.date).toLocaleDateString('en-GB')}","${companyName}","${location}","${email}","${q.grandTotal}","${q.progress}"`;
+      })
+      .join('\n');
+
+    const csvContent = headers + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.href) {
+      URL.revokeObjectURL(link.href);
+    }
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.setAttribute('download', 'quotations.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDownloadPdf = (quotation: Quotation) => {
     if (!quotation.company) {
       toast({
@@ -403,12 +428,18 @@ export function QuotationList() {
                     }}
                     />
                 </div>
-                <Button asChild>
-                    <Link href="/quotations/new">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create Quotation
-                    </Link>
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={exportToCSV}>
+                        <DownloadIcon className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                    <Button asChild>
+                        <Link href="/quotations/new">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create Quotation
+                        </Link>
+                    </Button>
+                </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
                  <Select value={selectedMonth} onValueChange={(value) => { setSelectedMonth(value === 'all' ? '' : value); setCurrentPage(1); }}>
