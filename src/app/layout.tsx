@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
-import { Toaster } from '@/components/ui/toaster';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'QuoteCraft',
@@ -25,12 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <div className="flex min-h-screen w-full flex-col">
-          <Header />
-          <main className="flex-1 bg-background">{children}</main>
-          <Footer />
-        </div>
-        <Toaster />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

@@ -55,3 +55,16 @@ export interface Quotation {
   createdBy: string;
   progress: QuotationStatus;
 }
+
+export interface UserCredentials {
+  email: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  password: string;
+}
