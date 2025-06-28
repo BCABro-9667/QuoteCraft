@@ -230,15 +230,16 @@ export function QuotationList() {
     }
 
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'bold');
     const headerRightX = pageWidth - 14;
-
-    const companyAddressText = userProfile.address || '';
+    
+    const companyAddressText = `Address: ${userProfile.address}` || '';
     const companyAddressLines = doc.splitTextToSize(companyAddressText, 80);
     let rightHeaderY = 12;
     doc.text(companyAddressLines, headerRightX, rightHeaderY, { align: 'right' });
     rightHeaderY += companyAddressLines.length * 3.5;
     
+    doc.setFont('helvetica', 'bold');
     const contactInfo = [
         userProfile.phone ? `Tel: ${userProfile.phone}` : '',
         userProfile.email ? `Email: ${userProfile.email}`: '',
@@ -252,7 +253,7 @@ export function QuotationList() {
     })
 
     doc.setDrawColor(245, 130, 32);
-    doc.setLineWidth(0.5);
+    doc.setLineWidth(1);
     doc.line(14, rightHeaderY, pageWidth - 14, rightHeaderY);
     let currentY = rightHeaderY;
 
@@ -405,8 +406,8 @@ export function QuotationList() {
     doc.text('Authorized signature', 14, finalY);
 
     // --- Footer Bar ---
-    doc.setFillColor(245, 130, 32);
-    doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+    // doc.setFillColor(245, 130, 32);
+    // doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
     
     doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
   };
