@@ -70,7 +70,7 @@ export const mockCompanies: Company[] = [
 export const mockUserProfile: UserProfile = {
     id: 'user-profile',
     companyName: 'ESTOVIR TECHNOLOGIES',
-    logoUrl: 'https://fplogoimages.withfloats.com/tile/63b3e90ca4c3440001407fbd.png',
+    logoUrl: 'https://res.cloudinary.com/dsugarjot/image/upload/v1750347317/Top_logo_xznjvr.png',
     email: 'sales@estovir.in',
     website: 'www.estovirsmt.com',
     phone: '0124-4013575',
