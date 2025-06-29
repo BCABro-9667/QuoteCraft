@@ -47,7 +47,7 @@ import { quantityTypes, quotationStatuses } from '@/types';
 import { formatCurrency, generateQuotationNumber, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Trash2, PlusCircle, CalendarIcon, Loader2 } from 'lucide-react';
+import { Trash2, PlusCircle, CalendarIcon, Loader2, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProductDialog } from './product-dialog';
 import { getCompanies } from '@/lib/actions/company.actions';
@@ -95,6 +95,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isProductDialogOpen, setProductDialogOpen] = useState(false);
+  const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
@@ -110,8 +111,8 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
       companyId: '',
       products: [],
       termsAndConditions: predefinedTerms,
-      referencedBy: '',
-      createdBy: '',
+      referencedBy: 'Kamal Puri',
+      createdBy: user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team',
       progress: 'Pending',
     },
   });
@@ -139,6 +140,8 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
             setCompanies(fetchedCompanies);
             setUserProfile(fetchedProfile);
 
+            const createdByName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team';
+
             if (isEditMode && quotationId) {
                 const quotationToEdit = await getQuotation(quotationId);
                 if (quotationToEdit) {
@@ -160,8 +163,8 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                     companyId: '',
                     products: [],
                     termsAndConditions: predefinedTerms,
-                    referencedBy: '',
-                    createdBy: '',
+                    referencedBy: 'Kamal Puri',
+                    createdBy: createdByName,
                     progress: 'Pending',
                 });
                 setSelectedCompany(null);
@@ -175,16 +178,40 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
     fetchData();
   }, [quotationId, user, form, isEditMode, router, toast]);
 
-  const addProduct = useCallback((product: Omit<Product, 'id' | 'srNo' | 'total'>) => {
-    const newProduct: Product = {
-      ...product,
-      id: new Date().getTime().toString(),
-      srNo: fields.length + 1,
-      total: product.quantity * product.price,
+  const handleSaveProduct = useCallback((productData: Omit<Product, 'id' | 'srNo' | 'total'>) => {
+    const productWithTotal = {
+      ...productData,
+      total: productData.quantity * productData.price,
     };
-    append(newProduct);
+
+    if (editingProductIndex !== null) {
+        const existingProduct = fields[editingProductIndex];
+        update(editingProductIndex, {
+            ...existingProduct,
+            ...productWithTotal
+        });
+    } else {
+        append({
+            id: new Date().getTime().toString(),
+            srNo: fields.length + 1,
+            ...productWithTotal,
+        });
+    }
     setProductDialogOpen(false);
-  }, [append, fields.length]);
+    setEditingProductIndex(null);
+  }, [append, fields, editingProductIndex, update]);
+  
+  const handleEditProductClick = (index: number) => {
+    setEditingProductIndex(index);
+    setProductDialogOpen(true);
+  };
+
+  const handleAddProductClick = () => {
+    setEditingProductIndex(null);
+    setProductDialogOpen(true);
+  };
+
+  const productToEdit = editingProductIndex !== null ? fields[editingProductIndex] : undefined;
   
   const grandTotal = fields.reduce((acc, product) => acc + product.total, 0);
 
@@ -337,7 +364,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                     <CardTitle>Products</CardTitle>
                     <CardDescription>Add products to the quotation.</CardDescription>
                 </div>
-                <Button type="button" onClick={() => setProductDialogOpen(true)} disabled={isSubmitting}>
+                <Button type="button" onClick={handleAddProductClick} disabled={isSubmitting}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                 </Button>
             </div>
@@ -368,10 +395,13 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                         <TableCell>{field.quantity} {field.quantityType}</TableCell>
                         <TableCell>{formatCurrency(field.price)}</TableCell>
                         <TableCell>{formatCurrency(field.total)}</TableCell>
-                        <TableCell>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={isSubmitting}>
+                        <TableCell className="flex gap-2">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => handleEditProductClick(index)} disabled={isSubmitting}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={isSubmitting}>
                             <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                          </Button>
                         </TableCell>
                     </TableRow>
                     ))}
@@ -487,8 +517,12 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
 
         <ProductDialog 
             isOpen={isProductDialogOpen} 
-            onClose={() => setProductDialogOpen(false)} 
-            onAddProduct={addProduct}
+            onClose={() => {
+                setProductDialogOpen(false);
+                setEditingProductIndex(null);
+            }} 
+            onSaveProduct={handleSaveProduct}
+            productToEdit={productToEdit}
         />
         </form>
     </Form>

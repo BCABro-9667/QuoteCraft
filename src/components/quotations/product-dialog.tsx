@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -52,20 +52,34 @@ type ProductFormValues = z.infer<typeof productSchema>;
 interface ProductDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddProduct: (product: Omit<Product, 'id' | 'srNo' | 'total'>) => void;
+  onSaveProduct: (product: Omit<Product, 'id' | 'srNo' | 'total'>) => void;
+  productToEdit?: Product;
 }
 
-export function ProductDialog({ isOpen, onClose, onAddProduct }: ProductDialogProps) {
+const defaultValues = {
+  name: '', model: '', hsn: undefined, quantity: 1, quantityType: 'Nos' as QuantityType, price: 0,
+};
+
+export function ProductDialog({ isOpen, onClose, onSaveProduct, productToEdit }: ProductDialogProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: {
-      name: '', model: '', hsn: undefined, quantity: 1, quantityType: 'Nos', price: 0,
-    },
+    defaultValues,
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      if (productToEdit) {
+        form.reset(productToEdit);
+      } else {
+        form.reset(defaultValues);
+      }
+      setImagePreview(null);
+    }
+  }, [isOpen, productToEdit, form]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -104,22 +118,15 @@ export function ProductDialog({ isOpen, onClose, onAddProduct }: ProductDialogPr
   };
 
   const onSubmit = (data: ProductFormValues) => {
-    onAddProduct(data);
-    form.reset();
-    setImagePreview(null);
+    onSaveProduct(data);
+    onClose();
   };
 
-  const handleClose = () => {
-    form.reset();
-    setImagePreview(null);
-    onClose();
-  }
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Add Product</DialogTitle>
+          <DialogTitle>{productToEdit ? 'Edit Product' : 'Add Product'}</DialogTitle>
           <DialogDescription>
             Enter product details manually or upload an image to auto-fill.
           </DialogDescription>
@@ -200,8 +207,8 @@ export function ProductDialog({ isOpen, onClose, onAddProduct }: ProductDialogPr
               </div>
 
               <DialogFooter className="pt-6">
-                <Button type="button" variant="outline" onClick={handleClose}>Cancel</Button>
-                <Button type="submit">Add Product</Button>
+                <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+                <Button type="submit">{productToEdit ? 'Save Changes' : 'Add Product'}</Button>
               </DialogFooter>
             </form>
           </Form>

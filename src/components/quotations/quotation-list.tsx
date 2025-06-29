@@ -189,13 +189,19 @@ export function QuotationList() {
   };
 
   const exportToCSV = () => {
-    const headers = 'Quotation Number,Date,Company Name,Location,Email,Grand Total,Progress\n';
+    const headers = 'Quotation Number,Date,Company Name,Contact Person,Contact No,Email,GSTIN,Products,Referenced By,Created By,Progress\n';
     const rows = filteredQuotations
       .map(q => {
         const companyName = q.company?.name.replace(/"/g, '""') || '';
-        const location = q.company?.location?.replace(/"/g, '""') || '';
+        const contactPerson = q.company?.contactPerson?.replace(/"/g, '""') || '';
+        const contactNo = q.company?.phone || '';
         const email = q.company?.email?.replace(/"/g, '""') || '';
-        return `"${q.quotationNumber}","${new Date(q.date).toLocaleDateString('en-GB')}","${companyName}","${location}","${email}","${q.grandTotal}","${q.progress}"`;
+        const gstin = q.company?.gstin || '';
+        const products = q.products.map(p => `${p.name} (Qty: ${p.quantity} ${p.quantityType})`).join('; ') || '';
+        const referencePerson = q.referencedBy.replace(/"/g, '""') || '';
+        const createdBy = q.createdBy.replace(/"/g, '""') || '';
+
+        return `"${q.quotationNumber}","${new Date(q.date).toLocaleDateString('en-GB')}","${companyName}","${contactPerson}","${contactNo}","${email}","${gstin}","${products}","${referencePerson}","${createdBy}","${q.progress}"`;
       })
       .join('\n');
 
@@ -337,9 +343,9 @@ export function QuotationList() {
     // --- Products Table ---
     const tableBody = quotation.products.map(p => ([
         p.srNo.toString(),
-        `${p.name}\n(Model No: ${p.model})`,
+        p.name, // Will be styled in didParseCell
         p.hsn,
-        `${String(p.quantity).padStart(2, '0')} ${p.quantityType}`,
+        `${String(p.quantity)} ${p.quantityType}`,
         formatNumberForPdf(p.price),
         formatNumberForPdf(p.total),
     ]));
@@ -369,6 +375,20 @@ export function QuotationList() {
             3: { halign: 'center' },
             4: { halign: 'right' },
             5: { halign: 'right' },
+        },
+        didParseCell: (data) => {
+            if (data.section === 'body' && data.column.dataKey === 1) { // Description column
+                const product = quotation.products[data.row.index];
+                if (product) {
+                    data.cell.text = []; // Clear original text
+                    
+                    const nameStyle = { font: 'helvetica', fontStyle: 'normal' };
+                    data.cell.text.push({ content: product.name, styles: nameStyle });
+
+                    const modelStyle = { font: 'helvetica', fontStyle: 'italic', fontSize: 8 };
+                    data.cell.text.push({ content: `(Model No: ${product.model})`, styles: modelStyle });
+                }
+            }
         },
     });
 
@@ -545,7 +565,7 @@ export function QuotationList() {
                         onValueChange={(value) => handleProgressChange(quotation.id, value as QuotationStatus)}
                       >
                         <SelectTrigger className={cn(
-                            "w-[120px] rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold capitalize transition-colors focus:ring-2 focus:ring-ring focus:ring-offset-2 justify-center",
+                            "w-full rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold capitalize transition-colors focus:ring-2 focus:ring-ring focus:ring-offset-2 justify-center",
                             {
                                 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 dark:bg-yellow-900/70 dark:text-yellow-200': quotation.progress === 'Pending',
                                 'bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900/70 dark:text-green-200': quotation.progress === 'Complete',
