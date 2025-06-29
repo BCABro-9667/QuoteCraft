@@ -514,7 +514,14 @@ export function QuotationList() {
                         value={quotation.progress}
                         onValueChange={(value) => handleProgressChange(quotation.id, value as QuotationStatus)}
                       >
-                        <SelectTrigger className="w-[120px]">
+                        <SelectTrigger className={cn(
+                            "w-[120px] rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold capitalize transition-colors focus:ring-2 focus:ring-ring focus:ring-offset-2 justify-center",
+                            {
+                                'bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 dark:bg-yellow-900/70 dark:text-yellow-200': quotation.progress === 'Pending',
+                                'bg-green-100 text-green-800 hover:bg-green-100/80 dark:bg-green-900/70 dark:text-green-200': quotation.progress === 'Complete',
+                                'bg-red-100 text-red-800 hover:bg-red-100/80 dark:bg-red-900/70 dark:text-red-200': quotation.progress === 'Rejected',
+                            }
+                        )}>
                           <SelectValue placeholder="Set status" />
                         </SelectTrigger>
                         <SelectContent>

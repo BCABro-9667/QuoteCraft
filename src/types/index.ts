@@ -39,7 +39,7 @@ export interface Product {
   total: number;
 }
 
-export const quotationStatuses = ['Pending', 'Complete'] as const;
+export const quotationStatuses = ['Pending', 'Complete', 'Rejected'] as const;
 export type QuotationStatus = (typeof quotationStatuses)[number];
 
 export interface Quotation {

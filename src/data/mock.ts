@@ -110,5 +110,19 @@ export const mockQuotations: Quotation[] = [
         referencedBy: 'Rohan Verma',
         createdBy: 'Admin',
         progress: 'Complete',
+    },
+    {
+        id: 'q3',
+        quotationNumber: 'ET/2023-24/03',
+        date: '2023-11-05',
+        companyId: '2',
+        products: [
+            { id: 'p4', srNo: 1, name: 'Organic Fertilizer', model: 'OF-50', hsn: '3101', quantity: 100, quantityType: 'Kg', price: 50, total: 5000 },
+        ],
+        grandTotal: 5000,
+        termsAndConditions: defaultTerms,
+        referencedBy: 'Priya Sharma',
+        createdBy: 'Sales Team',
+        progress: 'Rejected',
     }
 ];
