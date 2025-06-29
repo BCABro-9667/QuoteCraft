@@ -309,7 +309,7 @@ export function QuotationList() {
     doc.setFont('helvetica', 'normal');
     doc.text('Dear Sir,', 14, currentY);
     currentY += 6;
-    const introText = 'This has reference to our discussion; after going through your requirements, we offer our best proposal as follow:';
+    const introText = 'With reference to our recent discussion and after carefully reviewing your requirements, we are pleased to present our best proposal as outlined below:';
     const splitIntro = doc.splitTextToSize(introText, pageWidth - 28);
     doc.text(splitIntro, 14, currentY);
     currentY += (splitIntro.length * 5) + 3;

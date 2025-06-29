@@ -36,10 +36,12 @@ import { quantityTypes } from '@/types';
 import { analyzeProductImage } from '@/lib/actions';
 import { Loader2, Upload } from 'lucide-react';
 
+const hsnCodes = ['84678587', '84678586', '84678589', '84678581'] as const;
+
 const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   model: z.string().min(1, "Model number is required"),
-  hsn: z.string().min(1, "HSN code is required"),
+  hsn: z.enum(hsnCodes, { required_error: "HSN code is required" }),
   quantity: z.coerce.number().min(0.1, "Quantity must be positive"),
   quantityType: z.enum(quantityTypes),
   price: z.coerce.number().min(0, "Price cannot be negative"),
@@ -61,7 +63,7 @@ export function ProductDialog({ isOpen, onClose, onAddProduct }: ProductDialogPr
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      name: '', model: '', hsn: '', quantity: 1, quantityType: 'Nos', price: 0,
+      name: '', model: '', hsn: undefined, quantity: 1, quantityType: 'Nos', price: 0,
     },
   });
 
@@ -88,7 +90,7 @@ export function ProductDialog({ isOpen, onClose, onAddProduct }: ProductDialogPr
       } else {
         form.setValue('name', result.productName, { shouldValidate: true });
         form.setValue('model', result.modelNumber, { shouldValidate: true });
-        form.setValue('hsn', result.hsn, { shouldValidate: true });
+        form.setValue('hsn', result.hsn as any, { shouldValidate: true });
         form.setValue('quantity', result.quantity, { shouldValidate: true });
         form.setValue('price', result.price, { shouldValidate: true });
         toast({ title: 'AI Analysis Complete', description: 'Product details have been populated.' });
@@ -160,12 +162,35 @@ export function ProductDialog({ isOpen, onClose, onAddProduct }: ProductDialogPr
                     <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField control={form.control} name="model" render={({ field }) => ( <FormItem><FormLabel>Model No.</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                 </div>
-                <FormField control={form.control} name="hsn" render={({ field }) => ( <FormItem><FormLabel>HSN Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="hsn"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>HSN Code</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an HSN code" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {hsnCodes.map((code) => (
+                            <SelectItem key={code} value={code}>
+                              {code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="grid grid-cols-3 gap-4">
                     <FormField control={form.control} name="quantity" render={({ field }) => ( <FormItem><FormLabel>Quantity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                     <FormField control={form.control} name="quantityType" render={({ field }) => (
                         <FormItem><FormLabel>Unit</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger></FormControl>
                             <SelectContent>{quantityTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                         </Select><FormMessage /></FormItem>
