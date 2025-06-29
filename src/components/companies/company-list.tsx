@@ -33,7 +33,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { mockCompanies } from '@/data/mock';
@@ -52,8 +51,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useLocalStorage from '@/hooks/use-local-storage';
-
-const ITEMS_PER_PAGE = 5;
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export function CompanyList() {
   const [companies, setCompanies] = useLocalStorage<Company[]>(
@@ -62,6 +60,7 @@ export function CompanyList() {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const router = useRouter();
 
@@ -69,18 +68,18 @@ export function CompanyList() {
     return companies.filter(
       (company) =>
         company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        company.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        company.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        company.gstin.toLowerCase().includes(searchTerm.toLowerCase())
+        (company.email && company.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (company.location && company.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (company.gstin && company.gstin.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [companies, searchTerm]);
 
-  const paginatedCompanies = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredCompanies.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredCompanies, currentPage]);
+  const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
 
-  const totalPages = Math.ceil(filteredCompanies.length / ITEMS_PER_PAGE);
+  const paginatedCompanies = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredCompanies.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredCompanies, currentPage, itemsPerPage]);
 
   const handleDelete = (companyId: string) => {
     setCompanies(companies.filter((c) => c.id !== companyId));
@@ -90,7 +89,7 @@ export function CompanyList() {
     const headers = 'Company Name,Email,Location,GSTIN\n';
     const rows = filteredCompanies
       .map(
-        (c) => `"${c.name}","${c.email}","${c.location}","${c.gstin}"`
+        (c) => `"${c.name}","${c.email || ''}","${c.location || ''}","${c.gstin || ''}"`
       )
       .join('\n');
     const csvContent = headers + rows;
@@ -155,44 +154,44 @@ export function CompanyList() {
                     <TableCell className="hidden md:table-cell">{company.location}</TableCell>
                     <TableCell className="hidden lg:table-cell">{company.gstin}</TableCell>
                     <TableCell>
-                      <AlertDialog>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedCompany(company)}>
-                              <Eye className="mr-2 h-4 w-4" /> View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/companies/new?id=${company.id}`)}>
-                              <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
+                       <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setSelectedCompany(company)}>
+                            <Eye className="mr-2 h-4 w-4" /> View
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => router.push(`/companies/new?id=${company.id}`)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                <span className="text-destructive">Delete</span>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
                               </DropdownMenuItem>
                             </AlertDialogTrigger>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will permanently delete the company "{company.name}".
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(company.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the company "{company.name}".
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90">
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -207,29 +206,53 @@ export function CompanyList() {
           </Table>
         </div>
         
-        {totalPages > 1 && (
+        {totalPages > 0 && (
           <div className="flex items-center justify-end space-x-2 py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <span className="text-sm">
+            <div className="flex-1 text-sm text-muted-foreground">
+              {filteredCompanies.length} of {companies.length} row(s) found.
+            </div>
+            <div className="flex items-center space-x-2">
+              <p className="text-sm font-medium">Rows per page</p>
+              <Select
+                value={`${itemsPerPage}`}
+                onValueChange={(value) => {
+                  setItemsPerPage(Number(value));
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[70px]">
+                  <SelectValue placeholder={`${itemsPerPage}`} />
+                </SelectTrigger>
+                <SelectContent side="top">
+                  {[10, 20, 30, 40, 50].map((pageSize) => (
+                    <SelectItem key={pageSize} value={`${pageSize}`}>
+                      {pageSize}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
               Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
@@ -237,11 +260,12 @@ export function CompanyList() {
       <Dialog open={!!selectedCompany} onOpenChange={() => setSelectedCompany(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedCompany?.name}</DialogTitle>
+            <DialogTitle className="text-primary">{selectedCompany?.name}</DialogTitle>
             <DialogDescription>
               {selectedCompany?.location}
             </DialogDescription>
           </DialogHeader>
+          <hr />
           <div className="grid gap-4 py-4 text-sm">
             <div className="grid grid-cols-[120px_1fr] items-center gap-4">
               <strong>Address:</strong>

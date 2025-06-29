@@ -1,13 +1,13 @@
 export interface Company {
   id: string;
   name: string;
-  address: string;
-  location: string;
-  email: string;
-  phone: string;
-  contactPerson: string;
-  gstin: string;
-  remarks: string;
+  address?: string;
+  location?: string;
+  email?: string;
+  phone?: string;
+  contactPerson?: string;
+  gstin?: string;
+  remarks?: string;
 }
 
 export interface UserProfile {

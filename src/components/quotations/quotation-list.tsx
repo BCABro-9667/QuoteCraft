@@ -40,7 +40,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
     Select,
@@ -74,8 +73,6 @@ import { formatCurrency, formatNumberForPdf, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { format, isSameDay } from 'date-fns';
 
-const ITEMS_PER_PAGE = 5;
-
 const months = [
     "January", "February", "March", "April", "May", "June", 
     "July", "August", "September", "October", "November", "December"
@@ -87,6 +84,7 @@ export function QuotationList() {
   const [userProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
@@ -135,14 +133,14 @@ export function QuotationList() {
       return searchMatch && monthMatch && locationMatch && companyMatch && dateMatch;
     });
   }, [enrichedQuotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
+  
+  const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
 
   const paginatedQuotations = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredQuotations.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredQuotations, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredQuotations.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredQuotations, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(filteredQuotations.length / ITEMS_PER_PAGE);
-  
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedMonth('');
@@ -168,7 +166,7 @@ export function QuotationList() {
     const rows = filteredQuotations
       .map(q => {
         const companyName = q.company?.name.replace(/"/g, '""') || '';
-        const location = q.company?.location.replace(/"/g, '""') || '';
+        const location = q.company?.location?.replace(/"/g, '""') || '';
         const email = q.company?.email?.replace(/"/g, '""') || '';
         return `"${q.quotationNumber}","${new Date(q.date).toLocaleDateString('en-GB')}","${companyName}","${location}","${email}","${q.grandTotal}","${q.progress}"`;
       })
@@ -189,7 +187,12 @@ export function QuotationList() {
   };
 
   const handleDownloadPdf = (quotation: Quotation) => {
-    if (!quotation.company) {
+    const enrichedQuotation = {
+      ...quotation,
+      company: companies.find(c => c.id === quotation.companyId),
+    };
+
+    if (!enrichedQuotation.company) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -214,8 +217,6 @@ export function QuotationList() {
     // --- Header ---
     if (userProfile.logoUrl) {
       try {
-        // Note: For external URLs, this might fail in browser due to CORS.
-        // A server-side proxy or base64 conversion is more robust.
         doc.addImage(userProfile.logoUrl, 'PNG', 14, 12, 50, 15);
       } catch (e) {
         console.error("Error adding logo image:", e);
@@ -264,13 +265,13 @@ export function QuotationList() {
     doc.text('Ref. No.', headerRightX - 25, currentY, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0,0,0);
-    doc.text(quotation.quotationNumber, headerRightX, currentY, { align: 'right' });
+    doc.text(enrichedQuotation.quotationNumber, headerRightX, currentY, { align: 'right' });
     
     currentY += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('Date', headerRightX - 25, currentY, { align: 'right' });
     doc.setFont('helvetica', 'normal');
-    doc.text(new Date(quotation.date).toLocaleDateString('en-GB'), headerRightX, currentY, { align: 'right' });
+    doc.text(new Date(enrichedQuotation.date).toLocaleDateString('en-GB'), headerRightX, currentY, { align: 'right' });
     doc.setTextColor(0);
 
     // --- Client Info ---
@@ -285,10 +286,10 @@ export function QuotationList() {
         doc.setTextColor(0);
         clientY += 6;
     }
-    addClientInfo('Company Name:', quotation.company.name);
-    addClientInfo('Contact Person:', quotation.company.contactPerson);
-    addClientInfo('Contact No.:', quotation.company.phone);
-    addClientInfo('Email id:', quotation.company.email);
+    addClientInfo('Company Name:', enrichedQuotation.company.name);
+    addClientInfo('Contact Person:', enrichedQuotation.company.contactPerson);
+    addClientInfo('Contact No.:', enrichedQuotation.company.phone);
+    addClientInfo('Email id:', enrichedQuotation.company.email);
     currentY = clientY;
 
     // --- Subject ---
@@ -299,7 +300,7 @@ export function QuotationList() {
     doc.setDrawColor(0);
     doc.setLineWidth(0.3);
     doc.line(14, currentY + 1, 44, currentY + 1);
-
+    
     // --- Intro Text ---
     currentY += 8;
     doc.setFontSize(10);
@@ -312,7 +313,7 @@ export function QuotationList() {
     currentY += (splitIntro.length * 5) + 3;
 
     // --- Products Table ---
-    const tableBody = quotation.products.map(p => ([
+    const tableBody = enrichedQuotation.products.map(p => ([
         p.srNo.toString(),
         `${p.name}\n(Model No: ${p.model})`,
         p.hsn,
@@ -330,6 +331,9 @@ export function QuotationList() {
             fillColor: [245, 130, 32],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
+        },
+        bodyStyles: {
+            textColor: [0, 0, 0],
         },
         styles: {
             fontSize: 9,
@@ -350,7 +354,7 @@ export function QuotationList() {
 
     // --- Terms & Conditions ---
     finalY += 10;
-    if (quotation.termsAndConditions) {
+    if (enrichedQuotation.termsAndConditions) {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text('Terms & Conditions', 14, finalY);
@@ -361,7 +365,7 @@ export function QuotationList() {
         finalY += 6;
         doc.setFontSize(9);
         
-        const terms = quotation.termsAndConditions.split('\n').map(line => {
+        const terms = enrichedQuotation.termsAndConditions.split('\n').map(line => {
             const parts = line.split(':');
             const key = (parts.shift() || '').trim();
             const value = parts.join(':').trim();
@@ -404,12 +408,8 @@ export function QuotationList() {
     finalY += 20;
     doc.setFont('helvetica', 'normal');
     doc.text('Authorized signature', 14, finalY);
-
-    // --- Footer Bar ---
-    // doc.setFillColor(245, 130, 32);
-    // doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
     
-    doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
+    doc.save(`Quotation-${enrichedQuotation.quotationNumber}.pdf`);
   };
 
   return (
@@ -580,35 +580,60 @@ export function QuotationList() {
           </Table>
         </div>
         
-        {totalPages > 1 && (
+        {totalPages > 0 && (
           <div className="flex items-center justify-end space-x-2 py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <span className="text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <div className="flex-1 text-sm text-muted-foreground">
+                {filteredQuotations.length} of {quotations.length} row(s) found.
+            </div>
+            <div className="flex items-center space-x-2">
+                <p className="text-sm font-medium">Rows per page</p>
+                <Select
+                    value={`${itemsPerPage}`}
+                    onValueChange={(value) => {
+                        setItemsPerPage(Number(value));
+                        setCurrentPage(1);
+                    }}
+                >
+                    <SelectTrigger className="h-8 w-[70px]">
+                        <SelectValue placeholder={`${itemsPerPage}`} />
+                    </SelectTrigger>
+                    <SelectContent side="top">
+                        {[10, 20, 30, 40, 50].map((pageSize) => (
+                            <SelectItem key={pageSize} value={`${pageSize}`}>
+                                {pageSize}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
 
-      <Dialog open={!!selectedQuotation} onOpenChange={() => setSelectedQuotation(null)}>
-        <DialogContent className="sm:max-w-3xl">
+      <Dialog  open={!!selectedQuotation} onOpenChange={() => setSelectedQuotation(null)}>
+      <DialogContent className="sm:max-w-3xl my-5 max-h-[80vh] overflow-y-auto">
+
           <DialogHeader>
             <DialogTitle>Quotation Details: {selectedQuotation?.quotationNumber}</DialogTitle>
             <DialogDescription>
