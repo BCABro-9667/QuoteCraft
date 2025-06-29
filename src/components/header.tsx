@@ -5,15 +5,10 @@ import { usePathname } from 'next/navigation';
 import { Home, Building, FileText, Bot, User, Menu, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from './ui/skeleton';
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from './ui/sheet';
+import { Separator } from './ui/separator';
 
 const Logo = () => (
   <div className="flex items-center gap-2">
@@ -43,7 +38,8 @@ export function Header() {
 
   const isActive = (href: string) => {
     if (href === '/dashboard' && pathname === '/dashboard') return true;
-    if (href !== '/dashboard' && href !== '/') return pathname.startsWith(href);
+    if (href !== '/dashboard' && href !== '/' && !href.startsWith('/#')) return pathname.startsWith(href);
+    if(href.startsWith('/#')) return false; // Don't highlight anchor links
     return false;
   };
 
@@ -80,7 +76,7 @@ export function Header() {
       <Link
         key={item.label}
         href={item.href}
-        className="transition-colors hover:text-primary"
+        className="transition-colors hover:text-primary text-muted-foreground"
       >
         {item.label}
       </Link>
@@ -119,50 +115,57 @@ export function Header() {
     let items = isAuthenticated ? appNavItems : publicNavItems;
 
     return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Menu className="h-6 w-6" />
-            <span className="sr-only">Toggle navigation menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {items.map((item) => (
-            <DropdownMenuItem key={item.label} asChild>
-              <Link
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-4 py-2',
-                  isActive(item.href) && isAuthenticated ? 'font-semibold' : ''
-                )}
-              >
-                {item.icon && <item.icon className="h-5 w-5" />}
-                <span>{item.label}</span>
-              </Link>
-            </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          {isAuthenticated ? (
-            <DropdownMenuItem onClick={logout} className="flex items-center gap-4 py-2">
-              <LogOut className="h-5 w-5" />
-              <span>Logout</span>
-            </DropdownMenuItem>
-          ) : (
-            <>
-              <DropdownMenuItem asChild>
-                <Link href="/login" className="flex items-center gap-4 py-2">
-                  Login
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/register" className="flex items-center gap-4 py-2">
-                  Sign Up
-                </Link>
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Toggle navigation menu</span>
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col p-4">
+                <nav className="grid gap-4 text-lg font-medium mt-8">
+                    <SheetClose asChild>
+                        <Link href={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2 text-lg font-semibold mb-4">
+                            <Logo />
+                        </Link>
+                    </SheetClose>
+                    {items.map((item) => (
+                        <SheetClose asChild key={item.label}>
+                            <Link
+                                href={item.href}
+                                className={cn(
+                                'flex items-center gap-4 px-2.5 transition-colors hover:text-primary',
+                                isActive(item.href) && isAuthenticated ? 'text-foreground' : 'text-muted-foreground'
+                                )}
+                            >
+                                {item.icon && <item.icon className="h-5 w-5" />}
+                                <span>{item.label}</span>
+                            </Link>
+                        </SheetClose>
+                    ))}
+                </nav>
+                <div className="mt-auto">
+                    <Separator className="my-4" />
+                    {isAuthenticated ? (
+                    <SheetClose asChild>
+                        <Button variant="ghost" onClick={logout} className="w-full justify-start gap-4 px-2.5">
+                        <LogOut className="h-5 w-5" />
+                        <span>Logout</span>
+                        </Button>
+                    </SheetClose>
+                    ) : (
+                    <div className="grid gap-2">
+                        <SheetClose asChild>
+                            <Button asChild className="w-full"><Link href="/login">Login</Link></Button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                            <Button variant="outline" asChild className="w-full"><Link href="/register">Sign Up</Link></Button>
+                        </SheetClose>
+                    </div>
+                    )}
+                </div>
+            </SheetContent>
+        </Sheet>
     );
   };
 
