@@ -42,8 +42,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
     const result = await login(data);
-    if (result.success) {
-      toast({ title: 'Success', description: 'Logged in successfully.' });
+    if (result.success && result.user) {
+      toast({
+        variant: 'success',
+        title: `Welcome, ${result.user.firstName}!`,
+        description: 'You’ve successfully logged in.',
+        duration: 5000,
+      });
       router.push('/dashboard');
     } else {
       toast({ variant: 'destructive', title: 'Login Failed', description: result.message });

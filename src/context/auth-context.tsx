@@ -8,7 +8,7 @@ import { login as loginAction, register as registerAction, logout as logoutActio
 interface AuthContextType {
   user: Omit<User, 'password'> | null;
   loading: boolean;
-  login: (credentials: UserCredentials) => Promise<{ success: boolean; message: string }>;
+  login: (credentials: UserCredentials) => Promise<{ success: boolean; message: string; user?: Omit<User, 'password'> }>;
   register: (credentials: UserCredentials) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
 }
@@ -33,14 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkSession();
   }, []);
 
-  const login = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string }> => {
+  const login = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string; user?: Omit<User, 'password'> }> => {
     setLoading(true);
     const result = await loginAction(credentials);
     if (result.success && result.user) {
       setUser(result.user);
     }
     setLoading(false);
-    return { success: result.success, message: result.message };
+    return { success: result.success, message: result.message, user: result.user };
   }, []);
 
   const register = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string }> => {
