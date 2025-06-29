@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -52,8 +51,7 @@ import {
   } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { mockQuotations, mockCompanies, mockUserProfile } from '@/data/mock';
-import type { Quotation, UserProfile, QuotationStatus } from '@/types';
+import type { Quotation, UserProfile, QuotationStatus, Company } from '@/types';
 import { quotationStatuses } from '@/types';
 import {
   PlusCircle,
@@ -63,17 +61,18 @@ import {
   Edit,
   Trash2,
   FileDown as DownloadIcon,
-  ChevronLeft,
-  ChevronRight,
   Calendar as CalendarIcon,
   FilterX,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency, formatNumberForPdf, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { format, isSameDay } from 'date-fns';
+import { getQuotations, deleteQuotation, updateQuotationProgress } from '@/lib/actions/quotation.actions';
+import { getProfile } from '@/lib/actions/profile.actions';
 
 const months = [
     "January", "February", "March", "April", "May", "June", 
@@ -81,9 +80,9 @@ const months = [
 ];
 
 export function QuotationList() {
-  const [quotations, setQuotations] = useLocalStorage<Quotation[]>('quotations', mockQuotations);
-  const [companies] = useLocalStorage('companies', mockCompanies);
-  const [userProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -94,32 +93,47 @@ export function QuotationList() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
 
-  const enrichedQuotations = useMemo(() => {
-    return quotations.map(q => ({
-      ...q,
-      company: companies.find(c => c.id === q.companyId),
-    })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [quotations, companies]);
+  const fetchQuotations = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+        const [fetchedQuotations, fetchedProfile] = await Promise.all([
+            getQuotations(user.id),
+            getProfile(user.id)
+        ]);
+        setQuotations(fetchedQuotations);
+        setUserProfile(fetchedProfile);
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch quotations.' });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [user, toast]);
+
+  useEffect(() => {
+    fetchQuotations();
+  }, [fetchQuotations]);
 
   const uniqueLocations = useMemo(() => {
-    const locations = new Set(enrichedQuotations.map(q => q.company?.location).filter(Boolean));
+    const locations = new Set(quotations.map(q => q.company?.location).filter(Boolean));
     return Array.from(locations as string[]);
-  }, [enrichedQuotations]);
+  }, [quotations]);
 
   const uniqueCompanies = useMemo(() => {
     const companyMap = new Map<string, { id: string; name: string }>();
-    enrichedQuotations.forEach(q => {
+    quotations.forEach(q => {
       if (q.company && !companyMap.has(q.company.id)) {
         companyMap.set(q.company.id, { id: q.company.id, name: q.company.name });
       }
     });
     return Array.from(companyMap.values());
-  }, [enrichedQuotations]);
+  }, [quotations]);
 
   const filteredQuotations = useMemo(() => {
-    return enrichedQuotations.filter(q => {
+    return quotations.filter(q => {
       const lowercasedTerm = searchTerm.toLowerCase();
       const searchMatch =
         q.quotationNumber.toLowerCase().includes(lowercasedTerm) ||
@@ -134,7 +148,7 @@ export function QuotationList() {
 
       return searchMatch && monthMatch && locationMatch && companyMatch && dateMatch;
     });
-  }, [enrichedQuotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
+  }, [quotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
   
   const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
 
@@ -152,15 +166,26 @@ export function QuotationList() {
     setCurrentPage(1);
   };
 
-  const handleDelete = (quotationId: string) => {
-    setQuotations(quotations.filter((q) => q.id !== quotationId));
+  const handleDelete = async (quotationId: string) => {
+    try {
+        await deleteQuotation(quotationId);
+        toast({ title: "Success", description: "Quotation deleted successfully." });
+        fetchQuotations(); // Refetch
+    } catch (error) {
+        toast({ variant: 'destructive', title: "Error", description: "Failed to delete quotation." });
+    }
   };
   
-  const handleProgressChange = (quotationId: string, newProgress: QuotationStatus) => {
-    setQuotations(quotations.map(q => 
-      q.id === quotationId ? { ...q, progress: newProgress } : q
-    ));
-    toast({ title: "Status Updated", description: "Quotation progress has been updated." });
+  const handleProgressChange = async (quotationId: string, newProgress: QuotationStatus) => {
+    try {
+        await updateQuotationProgress(quotationId, newProgress);
+        // Optimistic update
+        setQuotations(prev => prev.map(q => q.id === quotationId ? { ...q, progress: newProgress } : q));
+        toast({ title: "Status Updated", description: "Quotation progress has been updated." });
+    } catch (error) {
+        toast({ variant: 'destructive', title: "Error", description: "Failed to update status." });
+        fetchQuotations(); // Revert optimistic update on error
+    }
   };
 
   const exportToCSV = () => {
@@ -189,12 +214,7 @@ export function QuotationList() {
   };
 
   const handleDownloadPdf = (quotation: Quotation) => {
-    const enrichedQuotation = {
-      ...quotation,
-      company: companies.find(c => c.id === quotation.companyId),
-    };
-
-    if (!enrichedQuotation.company) {
+    if (!quotation.company) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -267,13 +287,13 @@ export function QuotationList() {
     doc.text('Ref. No.', headerRightX - 25, currentY, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0,0,0);
-    doc.text(enrichedQuotation.quotationNumber, headerRightX, currentY, { align: 'right' });
+    doc.text(quotation.quotationNumber, headerRightX, currentY, { align: 'right' });
     
     currentY += 5;
     doc.setFont('helvetica', 'bold');
     doc.text('Date', headerRightX - 25, currentY, { align: 'right' });
     doc.setFont('helvetica', 'normal');
-    doc.text(new Date(enrichedQuotation.date).toLocaleDateString('en-GB'), headerRightX, currentY, { align: 'right' });
+    doc.text(new Date(quotation.date).toLocaleDateString('en-GB'), headerRightX, currentY, { align: 'right' });
     doc.setTextColor(0);
 
     // --- Client Info ---
@@ -288,10 +308,10 @@ export function QuotationList() {
         doc.setTextColor(0);
         clientY += 6;
     }
-    addClientInfo('Company Name:', enrichedQuotation.company.name);
-    addClientInfo('Contact Person:', enrichedQuotation.company.contactPerson);
-    addClientInfo('Contact No.:', enrichedQuotation.company.phone);
-    addClientInfo('Email id:', enrichedQuotation.company.email);
+    addClientInfo('Company Name:', quotation.company.name);
+    addClientInfo('Contact Person:', quotation.company.contactPerson);
+    addClientInfo('Contact No.:', quotation.company.phone);
+    addClientInfo('Email id:', quotation.company.email);
     currentY = clientY;
 
     // --- Subject ---
@@ -315,7 +335,7 @@ export function QuotationList() {
     currentY += (splitIntro.length * 5) + 3;
 
     // --- Products Table ---
-    const tableBody = enrichedQuotation.products.map(p => ([
+    const tableBody = quotation.products.map(p => ([
         p.srNo.toString(),
         `${p.name}\n(Model No: ${p.model})`,
         p.hsn,
@@ -356,7 +376,7 @@ export function QuotationList() {
 
     // --- Terms & Conditions ---
     finalY += 10;
-    if (enrichedQuotation.termsAndConditions) {
+    if (quotation.termsAndConditions) {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.text('Terms & Conditions', 14, finalY);
@@ -367,7 +387,7 @@ export function QuotationList() {
         finalY += 6;
         doc.setFontSize(9);
         
-        const terms = enrichedQuotation.termsAndConditions.split('\n').map(line => {
+        const terms = quotation.termsAndConditions.split('\n').map(line => {
             const parts = line.split(':');
             const key = (parts.shift() || '').trim();
             const value = parts.join(':').trim();
@@ -411,7 +431,7 @@ export function QuotationList() {
     doc.setFont('helvetica', 'normal');
     doc.text('Authorized signature', 14, finalY);
     
-    doc.save(`Quotation-${enrichedQuotation.quotationNumber}.pdf`);
+    doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
   };
 
   return (
@@ -503,7 +523,15 @@ export function QuotationList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedQuotations.length > 0 ? (
+            {isLoading ? (
+                <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center">
+                        <div className="flex justify-center items-center">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                    </TableCell>
+                </TableRow>
+            ) : paginatedQuotations.length > 0 ? (
                 paginatedQuotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">{quotation.quotationNumber}</TableCell>

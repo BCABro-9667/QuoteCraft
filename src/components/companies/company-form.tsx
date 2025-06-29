@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -15,11 +16,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
-import useLocalStorage from '@/hooks/use-local-storage';
-import { mockCompanies } from '@/data/mock';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 import type { Company } from '@/types';
-import { useEffect } from 'react';
+import { getCompany, createCompany, updateCompany } from '@/lib/actions/company.actions';
+import { Loader2 } from 'lucide-react';
 
 const companyFormSchema = z.object({
   name: z.string().min(1, { message: 'Company Name is required' }),
@@ -34,52 +35,66 @@ const companyFormSchema = z.object({
 
 type CompanyFormValues = z.infer<typeof companyFormSchema>;
 
-export function CompanyForm() {
+export function CompanyForm({ companyId }: { companyId?: string }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const [companies, setCompanies] = useLocalStorage<Company[]>('companies', mockCompanies);
-  const companyId = searchParams.get('id');
+  const { user } = useAuth();
   const isEditMode = !!companyId;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(isEditMode);
   
-  const defaultValues = {
-    name: '',
-    address: '',
-    location: '',
-    email: '',
-    phone: '',
-    contactPerson: '',
-    gstin: '',
-    remarks: '',
-  };
-
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companyFormSchema),
-    defaultValues,
+    defaultValues: {
+      name: '', address: '', location: '', email: '',
+      phone: '', contactPerson: '', gstin: '', remarks: '',
+    },
     mode: 'onChange',
   });
 
   useEffect(() => {
-    if (isEditMode) {
-      const companyToEdit = companies.find(c => c.id === companyId);
-      if (companyToEdit) {
-        form.reset(companyToEdit);
-      }
+    if (isEditMode && companyId) {
+      const fetchCompany = async () => {
+        setIsLoading(true);
+        const company = await getCompany(companyId);
+        if (company) {
+          form.reset(company);
+        } else {
+          toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
+          router.push('/companies');
+        }
+        setIsLoading(false);
+      };
+      fetchCompany();
     }
-  }, [companyId, companies, form, isEditMode]);
+  }, [companyId, form, isEditMode, router, toast]);
 
-
-  const onSubmit = (data: CompanyFormValues) => {
-    if (isEditMode) {
-        setCompanies(companies.map(c => c.id === companyId ? { ...c, ...data } : c));
-        toast({ title: "Success", description: "Company updated successfully." });
-    } else {
-        const newCompany: Company = { ...data, id: new Date().getTime().toString() };
-        setCompanies([...companies, newCompany]);
-        toast({ title: "Success", description: "Company added successfully." });
+  const onSubmit = async (data: CompanyFormValues) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: "Authentication Error", description: "You must be logged in." });
+        return;
     }
-    router.push('/companies');
+
+    setIsSubmitting(true);
+    try {
+        if (isEditMode && companyId) {
+            await updateCompany(companyId, data);
+            toast({ title: "Success", description: "Company updated successfully." });
+        } else {
+            await createCompany(data, user.id);
+            toast({ title: "Success", description: "Company added successfully." });
+        }
+        router.push('/companies');
+        router.refresh(); // To reflect changes in the list
+    } catch (error) {
+        toast({ variant: 'destructive', title: "Error", description: "Failed to save company." });
+        setIsSubmitting(false);
+    }
   };
+  
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
   return (
     <Form {...form}>
@@ -195,10 +210,13 @@ export function CompanyForm() {
           </div>
         </div>
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button type="submit">{isEditMode ? 'Update' : 'Save'} Company</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isEditMode ? 'Update' : 'Save'} Company
+          </Button>
         </div>
       </form>
     </Form>

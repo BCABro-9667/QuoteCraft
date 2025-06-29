@@ -3,7 +3,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserCredentials, User } from '@/types';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { login as loginAction, register as registerAction } from '@/lib/actions/auth.actions';
 
 interface AuthContextType {
   user: Omit<User, 'password'> | null;
@@ -18,7 +18,6 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Omit<User, 'password'> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [users, setUsers] = useLocalStorage<User[]>('auth-users', []);
   const router = useRouter();
 
   useEffect(() => {
@@ -37,35 +36,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string }> => {
-    const existingUser = users.find(u => u.email === credentials.email && u.password === credentials.password);
-    if (existingUser) {
-      const userToSave = { id: existingUser.id, email: existingUser.email };
+    const result = await loginAction(credentials);
+    if (result.success && result.user) {
+      const userToSave = { id: result.user.id, email: result.user.email, firstName: result.user.firstName, lastName: result.user.lastName };
       setUser(userToSave);
       sessionStorage.setItem('logged-in-user', JSON.stringify(userToSave));
       return { success: true, message: 'Login successful!' };
     }
-    return { success: false, message: 'Invalid email or password.' };
-  }, [users]);
+    return { success: false, message: result.message || 'Invalid email or password.' };
+  }, []);
 
   const register = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string }> => {
-    if (!credentials.password) {
-        return { success: false, message: 'Password is required.' };
+    const result = await registerAction(credentials);
+    if (result.success && result.user) {
+        const userToSave = { id: result.user.id, email: result.user.email, firstName: result.user.firstName, lastName: result.user.lastName };
+        setUser(userToSave);
+        sessionStorage.setItem('logged-in-user', JSON.stringify(userToSave));
+        return { success: true, message: 'Registration successful!' };
     }
-    const existingUser = users.find(u => u.email === credentials.email);
-    if (existingUser) {
-      return { success: false, message: 'An account with this email already exists.' };
-    }
-    const newUser: User = {
-      id: new Date().getTime().toString(),
-      email: credentials.email,
-      password: credentials.password,
-    };
-    setUsers([...users, newUser]);
-    const userToSave = { id: newUser.id, email: newUser.email };
-    setUser(userToSave);
-    sessionStorage.setItem('logged-in-user', JSON.stringify(userToSave));
-    return { success: true, message: 'Registration successful!' };
-  }, [users, setUsers]);
+    return { success: false, message: result.message || 'An error occurred during registration.' };
+  }, []);
 
   const logout = useCallback(() => {
     setUser(null);

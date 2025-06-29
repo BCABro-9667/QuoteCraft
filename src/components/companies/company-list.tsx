@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Table,
   TableHeader,
@@ -35,35 +35,47 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { mockCompanies } from '@/data/mock';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { Company } from '@/types';
 import {
   MoreHorizontal,
   PlusCircle,
   Search,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Edit,
   Trash2,
   FileDown,
+  Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getCompanies, deleteCompany } from '@/lib/actions/company.actions';
+import { useToast } from '@/hooks/use-toast';
 
 export function CompanyList() {
-  const [companies, setCompanies] = useLocalStorage<Company[]>(
-    'companies',
-    mockCompanies
-  );
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const router = useRouter();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const fetchCompanies = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    const fetchedCompanies = await getCompanies(user.id);
+    setCompanies(fetchedCompanies);
+    setIsLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
 
   const filteredCompanies = useMemo(() => {
     return companies.filter(
@@ -82,8 +94,14 @@ export function CompanyList() {
     return filteredCompanies.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredCompanies, currentPage, itemsPerPage]);
 
-  const handleDelete = (companyId: string) => {
-    setCompanies(companies.filter((c) => c.id !== companyId));
+  const handleDelete = async (companyId: string) => {
+    try {
+        await deleteCompany(companyId);
+        toast({ title: 'Success', description: 'Company deleted successfully.' });
+        fetchCompanies(); // Refetch after delete
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete company.' });
+    }
   };
 
   const exportToCSV = () => {
@@ -147,7 +165,15 @@ export function CompanyList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedCompanies.length > 0 ? (
+              {isLoading ? (
+                <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                        <div className="flex justify-center items-center">
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                    </TableCell>
+                </TableRow>
+              ) : paginatedCompanies.length > 0 ? (
                 paginatedCompanies.map((company) => (
                   <TableRow key={company.id}>
                     <TableCell className="font-medium">{company.name}</TableCell>
@@ -198,7 +224,7 @@ export function CompanyList() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={5} className="text-center h-24">
                     No companies found.
                   </TableCell>
                 </TableRow>

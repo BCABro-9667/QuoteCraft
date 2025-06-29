@@ -16,11 +16,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import useLocalStorage from '@/hooks/use-local-storage';
-import { mockUserProfile } from '@/data/mock';
+import { useAuth } from '@/hooks/use-auth';
 import type { UserProfile } from '@/types';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import { getProfile, updateProfile } from '@/lib/actions/profile.actions';
+import { Loader2 } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
 
 const profileFormSchema = z.object({
   companyName: z.string().min(1, { message: 'Company Name is required' }),
@@ -37,30 +39,77 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
+const defaultProfileValues = {
+    companyName: '', logoUrl: '', email: '', website: '', phone: '',
+    mobile: '', whatsapp: '', address: '', gstin: '', quotationPrefix: '',
+};
+
 export function ProfileForm() {
   const { toast } = useToast();
-  const [profile, setProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: mockUserProfile,
+    defaultValues: defaultProfileValues,
     mode: 'onChange',
   });
 
   const logoUrl = form.watch('logoUrl');
 
   useEffect(() => {
-    if (profile) {
-      form.reset(profile);
+    if (user?.id) {
+        const fetchProfile = async () => {
+            setIsLoading(true);
+            const profileData = await getProfile(user.id);
+            if (profileData) {
+                form.reset(profileData);
+            }
+            setIsLoading(false);
+        };
+        fetchProfile();
     }
-  }, [profile, form.reset]);
+  }, [user, form.reset]);
 
 
-  const onSubmit = (data: ProfileFormValues) => {
-    const updatedProfile: UserProfile = { ...profile, ...data };
-    setProfile(updatedProfile);
-    toast({ title: "Success", description: "Profile updated successfully." });
+  const onSubmit = async (data: ProfileFormValues) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
+        return;
+    }
+    setIsSubmitting(true);
+    try {
+        await updateProfile(user.id, data);
+        toast({ title: "Success", description: "Profile updated successfully." });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to update profile.' });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+        <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="md:col-span-2 flex items-center gap-6">
+                    <Skeleton className="h-[100px] w-[100px] rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                </div>
+                {[...Array(8)].map((_, i) => (
+                    <div key={i} className="space-y-2">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+  }
 
   return (
     <Form {...form}>
@@ -72,7 +121,7 @@ export function ProfileForm() {
                     alt="Company Logo"
                     width={100}
                     height={100}
-                    className="rounded-lg border bg-muted"
+                    className="rounded-lg border bg-muted object-contain"
                     data-ai-hint="logo"
                 />
                 <div className="flex-1">
@@ -217,7 +266,10 @@ export function ProfileForm() {
             </div>
         </div>
         <div className="flex justify-end gap-4">
-          <Button type="submit">Save Changes</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
         </div>
       </form>
     </Form>

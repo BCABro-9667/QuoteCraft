@@ -41,32 +41,38 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { mockCompanies, mockQuotations, mockUserProfile } from '@/data/mock';
-import useLocalStorage from '@/hooks/use-local-storage';
+import { useAuth } from '@/hooks/use-auth';
 import type { Company, Product, Quotation, UserProfile, QuotationStatus } from '@/types';
 import { quantityTypes, quotationStatuses } from '@/types';
 import { formatCurrency, generateQuotationNumber, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Trash2, PlusCircle, CalendarIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Trash2, PlusCircle, CalendarIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProductDialog } from './product-dialog';
+import { getCompanies } from '@/lib/actions/company.actions';
+import { createQuotation, getQuotation, updateQuotation, getQuotationCountForNumber } from '@/lib/actions/quotation.actions';
+import { getProfile } from '@/lib/actions/profile.actions';
+import { Skeleton } from '../ui/skeleton';
+
+const productSchema = z.object({
+    id: z.string().optional(),
+    _id: z.string().optional(),
+    srNo: z.number(),
+    name: z.string(),
+    model: z.string(),
+    hsn: z.string(),
+    quantity: z.number(),
+    quantityType: z.enum(quantityTypes),
+    price: z.number(),
+    total: z.number()
+});
 
 const quotationSchema = z.object({
   quotationNumber: z.string().min(1, "Quotation number is required"),
   date: z.string({ required_error: "A quotation date is required." }),
   companyId: z.string().min(1, 'Please select a company'),
-  products: z.array(z.object({
-      id: z.string(),
-      srNo: z.number(),
-      name: z.string(),
-      model: z.string(),
-      hsn: z.string(),
-      quantity: z.number(),
-      quantityType: z.enum(quantityTypes),
-      price: z.number(),
-      total: z.number()
-  })).min(1, "Please add at least one product"),
+  products: z.array(productSchema).min(1, "Please add at least one product"),
   termsAndConditions: z.string().optional(),
   referencedBy: z.string().min(1, "Referenced by is required"),
   createdBy: z.string().min(1, "Created by is required"),
@@ -84,17 +90,17 @@ Delivery: 2-3 Days confirmation of order with advance.
 Validity: 30 Days.
 Jurisdiction: All disputes will be referred to Faridabad, Jurisdiction on only`;
 
-export function QuotationCreator() {
-  const [companies] = useLocalStorage<Company[]>('companies', mockCompanies);
-  const [quotations, setQuotations] = useLocalStorage<Quotation[]>('quotations', mockQuotations);
-  const [userProfile] = useLocalStorage<UserProfile>('user-profile', mockUserProfile);
+export function QuotationCreator({ quotationId }: { quotationId?: string }) {
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isProductDialogOpen, setProductDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const quotationId = searchParams.get('id');
+  const { user } = useAuth();
   const isEditMode = !!quotationId;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const form = useForm<QuotationFormValues>({
     resolver: zodResolver(quotationSchema),
@@ -110,7 +116,7 @@ export function QuotationCreator() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "products",
   });
@@ -122,26 +128,52 @@ export function QuotationCreator() {
   }, [companies, form]);
 
   useEffect(() => {
-    if (isEditMode && quotationId && quotations.length > 0) {
-      const quotationToEdit = quotations.find(q => q.id === quotationId);
-      if (quotationToEdit) {
-        form.reset(quotationToEdit);
-        handleCompanyChange(quotationToEdit.companyId);
-      }
-    } else {
-        form.reset({
-            quotationNumber: generateQuotationNumber(userProfile.quotationPrefix, quotations.length),
-            date: new Date().toLocaleDateString('en-CA'),
-            companyId: '',
-            products: [],
-            termsAndConditions: predefinedTerms,
-            referencedBy: '',
-            createdBy: '',
-            progress: 'Pending',
-        });
-        setSelectedCompany(null);
-    }
-  }, [quotationId, quotations, form, isEditMode, handleCompanyChange, userProfile]);
+    const fetchData = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            const [fetchedCompanies, fetchedProfile] = await Promise.all([
+                getCompanies(user.id),
+                getProfile(user.id),
+            ]);
+            setCompanies(fetchedCompanies);
+            setUserProfile(fetchedProfile);
+
+            if (isEditMode && quotationId) {
+                const quotationToEdit = await getQuotation(quotationId);
+                if (quotationToEdit) {
+                    form.reset({
+                      ...quotationToEdit,
+                      date: new Date(quotationToEdit.date).toLocaleDateString('en-CA'),
+                    });
+                    const company = fetchedCompanies.find(c => c.id === quotationToEdit.companyId);
+                    setSelectedCompany(company || null);
+                } else {
+                    toast({ variant: 'destructive', title: 'Error', description: 'Quotation not found.' });
+                    router.push('/quotations');
+                }
+            } else if (fetchedProfile) {
+                const quotationCount = await getQuotationCountForNumber(user.id);
+                form.reset({
+                    quotationNumber: generateQuotationNumber(fetchedProfile.quotationPrefix, quotationCount),
+                    date: new Date().toLocaleDateString('en-CA'),
+                    companyId: '',
+                    products: [],
+                    termsAndConditions: predefinedTerms,
+                    referencedBy: '',
+                    createdBy: '',
+                    progress: 'Pending',
+                });
+                setSelectedCompany(null);
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to load initial data.' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    fetchData();
+  }, [quotationId, user, form, isEditMode, router, toast]);
 
   const addProduct = useCallback((product: Omit<Product, 'id' | 'srNo' | 'total'>) => {
     const newProduct: Product = {
@@ -153,44 +185,48 @@ export function QuotationCreator() {
     append(newProduct);
     setProductDialogOpen(false);
   }, [append, fields.length]);
-
+  
   const grandTotal = fields.reduce((acc, product) => acc + product.total, 0);
 
-  const onSubmit = (data: QuotationFormValues) => {
-    if (isEditMode && quotationId) {
-        const updatedQuotation: Quotation = {
-            id: quotationId,
-            quotationNumber: data.quotationNumber,
-            date: data.date,
-            companyId: data.companyId,
-            products: data.products,
-            grandTotal,
-            termsAndConditions: data.termsAndConditions || '',
-            referencedBy: data.referencedBy,
-            createdBy: data.createdBy,
-            progress: data.progress,
-        };
-        setQuotations(quotations.map(q => (q.id === quotationId ? updatedQuotation : q)));
-        toast({ title: "Success!", description: "Quotation updated successfully." });
-    } else {
-        const newQuotation: Quotation = {
-            id: new Date().getTime().toString(),
-            quotationNumber: data.quotationNumber,
-            date: data.date,
-            companyId: data.companyId,
-            products: data.products,
-            grandTotal,
-            termsAndConditions: data.termsAndConditions || '',
-            referencedBy: data.referencedBy,
-            createdBy: data.createdBy,
-            progress: data.progress,
-        };
-        setQuotations([...quotations, newQuotation]);
-        toast({ title: "Success!", description: "Quotation created successfully." });
+  const onSubmit = async (data: QuotationFormValues) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: "Authentication Error", description: "You must be logged in." });
+        return;
     }
-    router.push('/quotations');
+
+    setIsSubmitting(true);
+    const quotationData = { ...data, grandTotal };
+
+    try {
+        if (isEditMode && quotationId) {
+            await updateQuotation(quotationId, quotationData);
+            toast({ title: "Success!", description: "Quotation updated successfully." });
+        } else {
+            await createQuotation(quotationData, user.id);
+            toast({ title: "Success!", description: "Quotation created successfully." });
+        }
+        router.push('/quotations');
+        router.refresh();
+    } catch (error) {
+        toast({ variant: 'destructive', title: "Error", description: "Failed to save quotation." });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
   
+  if (isLoading) {
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Skeleton className="lg:col-span-1 h-48" />
+                <Skeleton className="lg:col-span-2 h-48" />
+            </div>
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-40 w-full" />
+        </div>
+    )
+  }
+
   return (
     <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -246,7 +282,7 @@ export function QuotationCreator() {
                         <FormItem>
                             <FormLabel>Quotation Number</FormLabel>
                             <FormControl>
-                                <Input {...field} />
+                                <Input {...field} readOnly={!isEditMode} />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -301,7 +337,7 @@ export function QuotationCreator() {
                     <CardTitle>Products</CardTitle>
                     <CardDescription>Add products to the quotation.</CardDescription>
                 </div>
-                <Button type="button" onClick={() => setProductDialogOpen(true)}>
+                <Button type="button" onClick={() => setProductDialogOpen(true)} disabled={isSubmitting}>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                 </Button>
             </div>
@@ -333,7 +369,7 @@ export function QuotationCreator() {
                         <TableCell>{formatCurrency(field.price)}</TableCell>
                         <TableCell>{formatCurrency(field.total)}</TableCell>
                         <TableCell>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={isSubmitting}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                         </TableCell>
@@ -442,8 +478,11 @@ export function QuotationCreator() {
         </Card>
 
         <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">{isEditMode ? 'Update Quotation' : 'Create Quotation'}</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEditMode ? 'Update Quotation' : 'Create Quotation'}
+            </Button>
         </div>
 
         <ProductDialog 

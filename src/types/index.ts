@@ -12,6 +12,7 @@ export interface Company {
 
 export interface UserProfile {
   id: string;
+  userId: string;
   companyName: string;
   logoUrl: string;
   email: string;
@@ -67,4 +68,6 @@ export interface User {
   id: string;
   email: string;
   password: string;
+  firstName?: string;
+  lastName?: string;
 }
