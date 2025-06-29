@@ -122,7 +122,7 @@ export function Header() {
                     <span className="sr-only">Toggle navigation menu</span>
                 </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col p-4">
+            <SheetContent side="right" className="flex flex-col p-4">
                 <nav className="grid gap-4 text-lg font-medium mt-8">
                     <SheetClose asChild>
                         <Link href={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2 text-lg font-semibold mb-4">

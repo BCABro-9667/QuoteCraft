@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import {
   Building,
@@ -20,6 +22,7 @@ import {
   BarChart,
   CheckCircle,
   Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { getCompanyCount } from '@/lib/actions/company.actions';
@@ -77,11 +80,25 @@ const actions = [
 
 export default function DashboardPage() {
     const { user } = useAuth();
+    const searchParams = useSearchParams();
+    const [showAlert, setShowAlert] = useState(false);
     const [stats, setStats] = useState<{
         companies: number;
         quotations: { total: number; pending: number; completed: number; rejected: number };
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (searchParams.get('login') === 'success') {
+          setShowAlert(true);
+          const timer = setTimeout(() => {
+            setShowAlert(false);
+            // Optional: remove the query param from URL without reloading the page
+            window.history.replaceState(null, '', '/dashboard');
+          }, 5000);
+          return () => clearTimeout(timer);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -107,6 +124,13 @@ export default function DashboardPage() {
   return (
     <ProtectedRoute>
       <div className="flex flex-col gap-6 md:gap-8">
+        {showAlert && user && (
+            <Alert variant="success">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertTitle>Welcome back, {user.firstName || 'User'}!</AlertTitle>
+                <AlertDescription>You’ve successfully logged in.</AlertDescription>
+            </Alert>
+        )}
         <header className="space-y-1.5">
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl font-headline">
                 Welcome back, {user?.firstName || 'User'}!

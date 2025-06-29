@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Link from 'next/link';
 import Image from 'next/image';
+import img1 from './ban.png'
 import { Rocket, ShieldCheck, Layers, GitBranch, Award, MessageCircle, ArrowRight } from 'lucide-react';
 
 const features = [
@@ -72,7 +73,7 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
         {/* Hero Section */}
-        <section id="home" className="w-full py-24 md:py-32 lg:py-40 relative overflow-hidden">
+        <section id="home" className="w-full py-24 md:py-32 lg:py-20 relative overflow-hidden">
           <div className="absolute top-0 left-0 -z-10 h-full w-full bg-background">
             <div className="absolute bottom-0 left-0 right-0 top-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
           </div>
@@ -100,12 +101,12 @@ export default function HomePage() {
               </div>
               <div className="relative">
                 <Image
-                  src="https://placehold.co/600x400.png"
+                  src={img1}
                   width="600"
                   height="400"
                   alt="Dashboard Preview"
                   data-ai-hint="dashboard analytics"
-                  className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last border-2 shadow-2xl shadow-primary/20"
+                  className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last "
                 />
               </div>
             </div>
