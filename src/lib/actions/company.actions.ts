@@ -40,3 +40,9 @@ export async function deleteCompany(companyId: string) {
     await CompanyModel.findByIdAndDelete(companyId);
     revalidatePath('/companies');
 }
+
+export async function getCompanyCount(): Promise<number> {
+    const userId = await getAuthenticatedUserId();
+    await dbConnect();
+    return CompanyModel.countDocuments({ userId });
+}

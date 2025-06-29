@@ -63,3 +63,15 @@ export async function updateQuotationProgress(quotationId: string, progress: Quo
     await QuotationModel.findByIdAndUpdate(quotationId, { progress });
     revalidatePath('/quotations');
 }
+
+export async function getQuotationStats(): Promise<{ total: number; pending: number; completed: number; rejected: number }> {
+    const userId = await getAuthenticatedUserId();
+    await dbConnect();
+    const [total, pending, completed, rejected] = await Promise.all([
+        QuotationModel.countDocuments({ userId }),
+        QuotationModel.countDocuments({ userId, progress: 'Pending' }),
+        QuotationModel.countDocuments({ userId, progress: 'Complete' }),
+        QuotationModel.countDocuments({ userId, progress: 'Rejected' })
+    ]);
+    return { total, pending, completed, rejected };
+}

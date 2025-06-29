@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -7,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import {
   Building,
@@ -15,22 +16,38 @@ import {
   FileText,
   PlusCircle,
   ArrowRight,
+  Users,
+  BarChart,
+  CheckCircle,
+  Clock,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { getCompanyCount } from '@/lib/actions/company.actions';
+import { getQuotationStats } from '@/lib/actions/quotation.actions';
+import { useAuth } from '@/hooks/use-auth';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const features = [
-  {
-    title: 'Create New Company',
-    description: 'Add a new company profile to the system.',
-    href: '/companies/new',
-    icon: PlusCircle,
-  },
-  {
-    title: 'View All Companies',
-    description: 'Browse and manage all company profiles.',
-    href: '/companies',
-    icon: Building,
-  },
+interface StatCardProps {
+    title: string;
+    value: string | number;
+    icon: LucideIcon;
+    description: string;
+}
+
+const StatCard = ({ title, value, icon: Icon, description }: StatCardProps) => (
+    <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+);
+
+const actions = [
   {
     title: 'Create New Quotation',
     description: 'Generate a new quotation for a client.',
@@ -38,53 +55,105 @@ const features = [
     icon: FilePlus,
   },
   {
-    title: 'View All Quotations',
+    title: 'Add New Company',
+    description: 'Add a new company profile to the system.',
+    href: '/companies/new',
+    icon: PlusCircle,
+  },
+  {
+    title: 'Manage Companies',
+    description: 'Browse and manage all company profiles.',
+    href: '/companies',
+    icon: Building,
+  },
+  {
+    title: 'Manage Quotations',
     description: 'Access and review all existing quotations.',
     href: '/quotations',
     icon: FileText,
   },
 ];
 
+
 export default function DashboardPage() {
+    const { user } = useAuth();
+    const [stats, setStats] = useState<{
+        companies: number;
+        quotations: { total: number; pending: number; completed: number; rejected: number };
+    } | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            setIsLoading(true);
+            try {
+                const [companyCount, quotationStats] = await Promise.all([
+                    getCompanyCount(),
+                    getQuotationStats(),
+                ]);
+                setStats({ companies: companyCount, quotations: quotationStats });
+            } catch (error) {
+                console.error("Failed to fetch dashboard stats:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (user) {
+            fetchStats();
+        }
+    }, [user]);
+    
   return (
     <ProtectedRoute>
-      <div className="container mx-auto p-4 md:p-6">
-        <header className="mb-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold font-headline text-foreground">
-            Welcome to Your Dashboard
-          </h1>
-          <p className="text-lg text-muted-foreground mt-2">
-            Manage your companies and quotations from here.
-          </p>
+      <div className="flex flex-col gap-6 md:gap-8">
+        <header className="space-y-1.5">
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl font-headline">
+                Welcome back, {user?.firstName || 'User'}!
+            </h1>
+            <p className="text-muted-foreground">
+                Here's a snapshot of your business activity.
+            </p>
         </header>
 
-        <main>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature) => (
-              <Card
-                key={feature.title}
-                className="group transform transition-transform duration-300 ease-in-out hover:-translate-y-2 hover:shadow-xl"
-              >
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-lg font-medium font-headline">
-                    {feature.title}
-                  </CardTitle>
-                  <feature.icon className="h-6 w-6 text-accent" />
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {feature.description}
-                  </p>
-                  <Button asChild className="w-full">
-                    <Link href={feature.href}>
-                      Go <ArrowRight className="ml-2 h-4 w-4" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {isLoading || !stats ? (
+                <>
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                    <Skeleton className="h-28" />
+                </>
+            ) : (
+                <>
+                    <StatCard title="Total Companies" value={stats.companies} icon={Users} description="All client companies managed." />
+                    <StatCard title="Total Quotations" value={stats.quotations.total} icon={BarChart} description="All quotations generated." />
+                    <StatCard title="Pending Quotations" value={stats.quotations.pending} icon={Clock} description="Quotations awaiting action." />
+                    <StatCard title="Completed Deals" value={stats.quotations.completed} icon={CheckCircle} description="Quotations marked as complete." />
+                </>
+            )}
+        </div>
+
+        <Card className="col-span-1 md:col-span-2">
+            <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>Get started with your most common tasks.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {actions.map((action) => (
+                    <Link href={action.href} key={action.title} className="group flex flex-col justify-between rounded-lg border bg-card p-4 transition-all hover:bg-accent/50 hover:shadow-md">
+                       <div>
+                        <action.icon className="h-8 w-8 text-primary mb-3" />
+                        <h3 className="font-semibold">{action.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{action.description}</p>
+                       </div>
+                        <div className="flex items-center text-sm font-medium text-primary mt-4 opacity-0 transition-opacity group-hover:opacity-100">
+                            Let's go <ArrowRight className="ml-2 h-4 w-4" />
+                        </div>
                     </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </main>
+                ))}
+            </CardContent>
+        </Card>
       </div>
     </ProtectedRoute>
   );
