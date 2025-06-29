@@ -494,6 +494,7 @@ export function QuotationList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Quotation No</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead>Company Name</TableHead>
                 <TableHead className="hidden md:table-cell">Email</TableHead>
                 <TableHead className="hidden lg:table-cell">Location</TableHead>
@@ -506,6 +507,7 @@ export function QuotationList() {
                 paginatedQuotations.map((quotation) => (
                   <TableRow key={quotation.id}>
                     <TableCell className="font-medium">{quotation.quotationNumber}</TableCell>
+                    <TableCell>{format(new Date(quotation.date), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>{quotation.company?.name || 'N/A'}</TableCell>
                     <TableCell className="hidden md:table-cell">{quotation.company?.email || 'N/A'}</TableCell>
                     <TableCell className="hidden lg:table-cell">{quotation.company?.location || 'N/A'}</TableCell>
@@ -580,7 +582,7 @@ export function QuotationList() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center h-24">
+                  <TableCell colSpan={7} className="text-center h-24">
                     No quotations found.
                   </TableCell>
                 </TableRow>
