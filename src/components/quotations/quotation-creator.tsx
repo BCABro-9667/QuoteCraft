@@ -133,8 +133,8 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
         setIsLoading(true);
         try {
             const [fetchedCompanies, fetchedProfile] = await Promise.all([
-                getCompanies(user.id),
-                getProfile(user.id),
+                getCompanies(),
+                getProfile(),
             ]);
             setCompanies(fetchedCompanies);
             setUserProfile(fetchedProfile);
@@ -153,7 +153,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                     router.push('/quotations');
                 }
             } else if (fetchedProfile) {
-                const quotationCount = await getQuotationCountForNumber(user.id);
+                const quotationCount = await getQuotationCountForNumber();
                 form.reset({
                     quotationNumber: generateQuotationNumber(fetchedProfile.quotationPrefix, quotationCount),
                     date: new Date().toLocaleDateString('en-CA'),
@@ -202,7 +202,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
             await updateQuotation(quotationId, quotationData);
             toast({ title: "Success!", description: "Quotation updated successfully." });
         } else {
-            await createQuotation(quotationData, user.id);
+            await createQuotation(quotationData);
             toast({ title: "Success!", description: "Quotation created successfully." });
         }
         router.push('/quotations');

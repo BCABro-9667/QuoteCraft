@@ -3,7 +3,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { UserCredentials, User } from '@/types';
-import { login as loginAction, register as registerAction } from '@/lib/actions/auth.actions';
+import { login as loginAction, register as registerAction, logout as logoutAction, getCurrentUser } from '@/lib/actions/auth.actions';
 
 interface AuthContextType {
   user: Omit<User, 'password'> | null;
@@ -22,44 +22,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // This effect runs once on mount on the client side
-    try {
-      const loggedInUser = sessionStorage.getItem('logged-in-user');
-      if (loggedInUser) {
-        setUser(JSON.parse(loggedInUser));
-      }
-    } catch (e) {
-      console.error('Failed to parse user from sessionStorage', e);
-      sessionStorage.removeItem('logged-in-user');
-    } finally {
-      setLoading(false);
+    // to check if there is an active session from the secure cookie.
+    const checkSession = async () => {
+        const session = await getCurrentUser();
+        if (session?.user) {
+            setUser(session.user);
+        }
+        setLoading(false);
     }
+    checkSession();
   }, []);
 
   const login = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string }> => {
+    setLoading(true);
     const result = await loginAction(credentials);
     if (result.success && result.user) {
-      const userToSave = { id: result.user.id, email: result.user.email, firstName: result.user.firstName, lastName: result.user.lastName };
-      setUser(userToSave);
-      sessionStorage.setItem('logged-in-user', JSON.stringify(userToSave));
-      return { success: true, message: 'Login successful!' };
+      setUser(result.user);
     }
-    return { success: false, message: result.message || 'Invalid email or password.' };
+    setLoading(false);
+    return { success: result.success, message: result.message };
   }, []);
 
   const register = useCallback(async (credentials: UserCredentials): Promise<{ success: boolean; message: string }> => {
+    setLoading(true);
     const result = await registerAction(credentials);
     if (result.success && result.user) {
-        const userToSave = { id: result.user.id, email: result.user.email, firstName: result.user.firstName, lastName: result.user.lastName };
-        setUser(userToSave);
-        sessionStorage.setItem('logged-in-user', JSON.stringify(userToSave));
-        return { success: true, message: 'Registration successful!' };
+        setUser(result.user);
     }
-    return { success: false, message: result.message || 'An error occurred during registration.' };
+    setLoading(false);
+    return { success: result.success, message: result.message };
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    setLoading(true);
+    await logoutAction();
     setUser(null);
-    sessionStorage.removeItem('logged-in-user');
+    setLoading(false);
     // We use replace here to prevent the user from going back to the authenticated route
     router.replace('/login');
   }, [router]);

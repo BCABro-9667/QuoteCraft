@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import dbConnect from "../mongodb";
 import CompanyModel from "@/models/Company.model";
 import type { Company } from "@/types";
+import { getAuthenticatedUserId } from "../session";
 
 const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
-export async function getCompanies(userId: string): Promise<Company[]> {
+export async function getCompanies(): Promise<Company[]> {
+    const userId = await getAuthenticatedUserId();
     await dbConnect();
     const companies = await CompanyModel.find({ userId }).sort({ name: 1 });
     return plain(companies);
@@ -19,7 +21,8 @@ export async function getCompany(companyId: string): Promise<Company | null> {
     return plain(company);
 }
 
-export async function createCompany(companyData: Omit<Company, 'id'>, userId: string) {
+export async function createCompany(companyData: Omit<Company, 'id'>) {
+    const userId = await getAuthenticatedUserId();
     await dbConnect();
     await CompanyModel.create({ ...companyData, userId });
     revalidatePath('/companies');

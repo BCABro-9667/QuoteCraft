@@ -101,8 +101,8 @@ export function QuotationList() {
     setIsLoading(true);
     try {
         const [fetchedQuotations, fetchedProfile] = await Promise.all([
-            getQuotations(user.id),
-            getProfile(user.id)
+            getQuotations(),
+            getProfile()
         ]);
         setQuotations(fetchedQuotations);
         setUserProfile(fetchedProfile);

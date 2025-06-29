@@ -81,7 +81,7 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
             await updateCompany(companyId, data);
             toast({ title: "Success", description: "Company updated successfully." });
         } else {
-            await createCompany(data, user.id);
+            await createCompany(data);
             toast({ title: "Success", description: "Company added successfully." });
         }
         router.push('/companies');

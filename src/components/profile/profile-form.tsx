@@ -62,15 +62,20 @@ export function ProfileForm() {
     if (user?.id) {
         const fetchProfile = async () => {
             setIsLoading(true);
-            const profileData = await getProfile(user.id);
-            if (profileData) {
-                form.reset(profileData);
+            try {
+              const profileData = await getProfile();
+              if (profileData) {
+                  form.reset(profileData);
+              }
+            } catch (error) {
+               toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch profile.' });
+            } finally {
+               setIsLoading(false);
             }
-            setIsLoading(false);
         };
         fetchProfile();
     }
-  }, [user, form.reset]);
+  }, [user, form.reset, toast]);
 
 
   const onSubmit = async (data: ProfileFormValues) => {
@@ -80,7 +85,7 @@ export function ProfileForm() {
     }
     setIsSubmitting(true);
     try {
-        await updateProfile(user.id, data);
+        await updateProfile(data);
         toast({ title: "Success", description: "Profile updated successfully." });
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to update profile.' });

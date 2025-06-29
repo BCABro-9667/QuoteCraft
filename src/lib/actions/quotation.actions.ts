@@ -5,10 +5,12 @@ import dbConnect from "../mongodb";
 import QuotationModel from "@/models/Quotation.model";
 import CompanyModel from "@/models/Company.model";
 import type { Quotation, QuotationStatus } from "@/types";
+import { getAuthenticatedUserId } from "../session";
 
 const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
-export async function getQuotations(userId: string): Promise<Quotation[]> {
+export async function getQuotations(): Promise<Quotation[]> {
+    const userId = await getAuthenticatedUserId();
     await dbConnect();
     const quotations = await QuotationModel.find({ userId }).sort({ date: -1 });
     
@@ -30,12 +32,14 @@ export async function getQuotation(quotationId: string): Promise<Quotation | nul
     return plain(quotation);
 }
 
-export async function getQuotationCountForNumber(userId: string): Promise<number> {
+export async function getQuotationCountForNumber(): Promise<number> {
+    const userId = await getAuthenticatedUserId();
     await dbConnect();
     return QuotationModel.countDocuments({ userId });
 }
 
-export async function createQuotation(quotationData: Omit<Quotation, 'id'>, userId: string) {
+export async function createQuotation(quotationData: Omit<Quotation, 'id'>) {
+    const userId = await getAuthenticatedUserId();
     await dbConnect();
     await QuotationModel.create({ ...quotationData, userId });
     revalidatePath('/quotations');

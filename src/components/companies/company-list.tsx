@@ -68,10 +68,15 @@ export function CompanyList() {
   const fetchCompanies = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    const fetchedCompanies = await getCompanies(user.id);
-    setCompanies(fetchedCompanies);
-    setIsLoading(false);
-  }, [user]);
+    try {
+      const fetchedCompanies = await getCompanies();
+      setCompanies(fetchedCompanies);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch companies.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, toast]);
 
   useEffect(() => {
     fetchCompanies();
