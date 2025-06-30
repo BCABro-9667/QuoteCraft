@@ -81,6 +81,7 @@ export function CompanyList() {
       };
       fetchCompanies();
     } else if (!authLoading && !user) {
+      // Not logged in, stop loading. ProtectedRoute will redirect.
       setIsLoading(false);
     }
   }, [user, authLoading, toast]);

@@ -53,26 +53,33 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
   });
 
   useEffect(() => {
-    if (isEditMode && companyId && !authLoading && user) {
-      const fetchCompany = async () => {
-        setIsLoading(true);
-        try {
-          const company = await getCompany(companyId);
-          if (company) {
-            form.reset(company);
-          } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
-            router.push('/companies');
+    if (isEditMode && companyId) {
+      if (!authLoading && user) {
+        const fetchCompany = async () => {
+          setIsLoading(true);
+          try {
+            const company = await getCompany(companyId);
+            if (company) {
+              form.reset(company);
+            } else {
+              toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
+              router.push('/companies');
+            }
+          } catch (error) {
+            console.error('Failed to fetch company details:', error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch company details.' });
+          } finally {
+            setIsLoading(false);
           }
-        } catch (error) {
-          console.error('Failed to fetch company details:', error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch company details.' });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchCompany();
-    } else if (!isEditMode) {
+        };
+        fetchCompany();
+      } else if (!authLoading && !user) {
+        // User not logged in, but trying to access an authenticated route.
+        // ProtectedRoute will handle redirect, but we should stop loading.
+        setIsLoading(false);
+      }
+    } else {
+      // Not in edit mode, so no data to fetch.
       setIsLoading(false);
     }
   }, [companyId, user, authLoading, isEditMode, form, router, toast]);
