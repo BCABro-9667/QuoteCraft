@@ -231,17 +231,18 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
         if (!user) return;
         setIsLoading(true);
         try {
-            const [fetchedCompanies, fetchedProfile] = await Promise.all([
+            const [fetchedCompanies, fetchedProfile, quotationToEdit] = await Promise.all([
                 getCompanies(),
                 getProfile(),
+                isEditMode && quotationId ? getQuotation(quotationId) : Promise.resolve(null)
             ]);
+            
             setCompanies(fetchedCompanies);
             setUserProfile(fetchedProfile);
 
             const createdByName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team';
 
             if (isEditMode && quotationId) {
-                const quotationToEdit = await getQuotation(quotationId);
                 if (quotationToEdit) {
                     form.reset({
                       ...quotationToEdit,
@@ -268,13 +269,14 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                 setSelectedCompany(null);
             }
         } catch (error) {
+            console.error("Failed to load quotation data:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to load initial data.' });
         } finally {
             setIsLoading(false);
         }
     };
     fetchData();
-  }, [quotationId, user, form, isEditMode, router, toast]);
+  }, [quotationId, user, isEditMode, form.reset, router, toast]);
 
   const handleSaveProduct = useCallback((productData: Omit<Product, 'id' | 'srNo' | 'total'>) => {
     const productWithTotal = {
