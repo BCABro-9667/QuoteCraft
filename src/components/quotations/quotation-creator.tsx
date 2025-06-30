@@ -227,58 +227,57 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
   }, [companies, form]);
 
   useEffect(() => {
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const [fetchedCompanies, fetchedProfile] = await Promise.all([
-                getCompanies(),
-                getProfile(),
-            ]);
-            
-            setCompanies(fetchedCompanies);
-            setUserProfile(fetchedProfile);
+    if (!authLoading && user) {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [fetchedCompanies, fetchedProfile] = await Promise.all([
+                    getCompanies(),
+                    getProfile(),
+                ]);
+                
+                setCompanies(fetchedCompanies);
+                setUserProfile(fetchedProfile);
 
-            const createdByName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team';
+                const createdByName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team';
 
-            if (isEditMode && quotationId) {
-                const quotationToEdit = await getQuotation(quotationId);
-                if (quotationToEdit) {
+                if (isEditMode && quotationId) {
+                    const quotationToEdit = await getQuotation(quotationId);
+                    if (quotationToEdit) {
+                        form.reset({
+                          ...quotationToEdit,
+                          date: new Date(quotationToEdit.date).toLocaleDateString('en-CA'),
+                          createdBy: quotationToEdit.createdBy || createdByName,
+                        });
+                        const company = fetchedCompanies.find(c => c.id === quotationToEdit.companyId);
+                        setSelectedCompany(company || null);
+                    } else {
+                        toast({ variant: 'destructive', title: 'Error', description: 'Quotation not found.' });
+                        router.push('/quotations');
+                    }
+                } else if (fetchedProfile) {
+                    const quotationCount = await getQuotationCountForNumber();
                     form.reset({
-                      ...quotationToEdit,
-                      date: new Date(quotationToEdit.date).toLocaleDateString('en-CA'),
-                      createdBy: quotationToEdit.createdBy || createdByName,
+                        quotationNumber: generateQuotationNumber(fetchedProfile.quotationPrefix, quotationCount),
+                        date: new Date().toLocaleDateString('en-CA'),
+                        companyId: '',
+                        products: [],
+                        termsAndConditions: predefinedTerms,
+                        referencedBy: 'Kamal Puri',
+                        createdBy: createdByName,
+                        progress: 'Pending',
                     });
-                    const company = fetchedCompanies.find(c => c.id === quotationToEdit.companyId);
-                    setSelectedCompany(company || null);
-                } else {
-                    toast({ variant: 'destructive', title: 'Error', description: 'Quotation not found.' });
-                    router.push('/quotations');
+                    setSelectedCompany(null);
                 }
-            } else if (fetchedProfile) {
-                const quotationCount = await getQuotationCountForNumber();
-                form.reset({
-                    quotationNumber: generateQuotationNumber(fetchedProfile.quotationPrefix, quotationCount),
-                    date: new Date().toLocaleDateString('en-CA'),
-                    companyId: '',
-                    products: [],
-                    termsAndConditions: predefinedTerms,
-                    referencedBy: 'Kamal Puri',
-                    createdBy: createdByName,
-                    progress: 'Pending',
-                });
-                setSelectedCompany(null);
+            } catch (error) {
+                console.error("Failed to load quotation data:", error);
+                toast({ variant: 'destructive', title: 'Error', description: 'Failed to load initial data.' });
+            } finally {
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.error("Failed to load quotation data:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to load initial data.' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    if (user && !authLoading) {
-      fetchData();
-    } else if (!user && !authLoading) {
+        };
+        fetchData();
+    } else if (!authLoading && !user) {
       setIsLoading(false);
     }
   }, [quotationId, user, authLoading, isEditMode, form, router, toast]);

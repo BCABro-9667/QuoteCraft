@@ -101,26 +101,23 @@ export default function DashboardPage() {
     }, [searchParams]);
 
     useEffect(() => {
-        const fetchStats = async () => {
-            setIsLoading(true);
-            try {
-                const [companyCount, quotationStats] = await Promise.all([
-                    getCompanyCount(),
-                    getQuotationStats(),
-                ]);
-                setStats({ companies: companyCount, quotations: quotationStats });
-            } catch (error) {
-                console.error("Failed to fetch dashboard stats:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        if (user && !authLoading) {
+        if (!authLoading && user) {
+            const fetchStats = async () => {
+                setIsLoading(true);
+                try {
+                    const [companyCount, quotationStats] = await Promise.all([
+                        getCompanyCount(),
+                        getQuotationStats(),
+                    ]);
+                    setStats({ companies: companyCount, quotations: quotationStats });
+                } catch (error) {
+                    console.error("Failed to fetch dashboard stats:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
             fetchStats();
-        } else if (!user && !authLoading) {
-            // Auth is resolved, but no user. ProtectedRoute will redirect.
-            // We can stop our own loading spinner.
+        } else if (!authLoading && !user) {
             setIsLoading(false);
         }
     }, [user, authLoading]);

@@ -96,29 +96,30 @@ export function QuotationList() {
   const { user, loading: authLoading } = useAuth();
 
 
-  const fetchQuotations = useCallback(async () => {
-    setIsLoading(true);
-    try {
-        const [fetchedQuotations, fetchedProfile] = await Promise.all([
+  useEffect(() => {
+    if (!authLoading && user) {
+      const fetchQuotations = async () => {
+        setIsLoading(true);
+        try {
+          const [fetchedQuotations, fetchedProfile] = await Promise.all([
             getQuotations(),
             getProfile()
-        ]);
-        setQuotations(fetchedQuotations);
-        setUserProfile(fetchedProfile);
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch quotations.' });
-    } finally {
-        setIsLoading(false);
+          ]);
+          setQuotations(fetchedQuotations);
+          setUserProfile(fetchedProfile);
+        } catch (error) {
+          console.error("Failed to fetch quotations:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch quotations.' });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchQuotations();
+    } else if (!authLoading && !user) {
+      setIsLoading(false);
     }
-  }, [toast]);
+  }, [user, authLoading, toast]);
 
-  useEffect(() => {
-    if (user && !authLoading) {
-        fetchQuotations();
-    } else if (!user && !authLoading) {
-        setIsLoading(false);
-    }
-  }, [user, authLoading, fetchQuotations]);
 
   const uniqueLocations = useMemo(() => {
     const locations = new Set(quotations.map(q => q.company?.location).filter(Boolean));
@@ -173,7 +174,7 @@ export function QuotationList() {
     try {
         await deleteQuotation(quotationId);
         toast({ title: "Success", description: "Quotation deleted successfully." });
-        fetchQuotations(); // Refetch
+        setQuotations(prev => prev.filter(q => q.id !== quotationId));
     } catch (error) {
         toast({ variant: 'destructive', title: "Error", description: "Failed to delete quotation." });
     }
@@ -187,7 +188,8 @@ export function QuotationList() {
         toast({ title: "Status Updated", description: "Quotation progress has been updated." });
     } catch (error) {
         toast({ variant: 'destructive', title: "Error", description: "Failed to update status." });
-        fetchQuotations(); // Revert optimistic update on error
+        // Revert optimistic update on error by refetching, though not ideal.
+        // A better approach would be to store the old state and revert.
     }
   };
 

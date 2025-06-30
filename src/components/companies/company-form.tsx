@@ -53,24 +53,24 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
   });
 
   useEffect(() => {
-    const fetchCompany = async () => {
-      setIsLoading(true);
-      try {
-        const company = await getCompany(companyId!);
-        if (company) {
-          form.reset(company);
-        } else {
-          toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
-          router.push('/companies');
+    if (isEditMode && companyId && !authLoading && user) {
+      const fetchCompany = async () => {
+        setIsLoading(true);
+        try {
+          const company = await getCompany(companyId);
+          if (company) {
+            form.reset(company);
+          } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
+            router.push('/companies');
+          }
+        } catch (error) {
+          console.error('Failed to fetch company details:', error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch company details.' });
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch company details.' });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (isEditMode && companyId && user && !authLoading) {
+      };
       fetchCompany();
     } else if (!isEditMode) {
       setIsLoading(false);

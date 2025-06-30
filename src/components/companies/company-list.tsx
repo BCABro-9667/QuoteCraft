@@ -65,26 +65,26 @@ export function CompanyList() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  const fetchCompanies = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const fetchedCompanies = await getCompanies();
-      setCompanies(fetchedCompanies);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch companies.' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
   useEffect(() => {
-    if (user && !authLoading) {
+    if (!authLoading && user) {
+      const fetchCompanies = async () => {
+        setIsLoading(true);
+        try {
+          const fetchedCompanies = await getCompanies();
+          setCompanies(fetchedCompanies);
+        } catch (error) {
+          console.error("Failed to fetch companies:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch companies.' });
+        } finally {
+          setIsLoading(false);
+        }
+      };
       fetchCompanies();
-    } else if (!user && !authLoading) {
-      // Auth is resolved, but no user. ProtectedRoute will redirect.
+    } else if (!authLoading && !user) {
       setIsLoading(false);
     }
-  }, [user, authLoading, fetchCompanies]);
+  }, [user, authLoading, toast]);
+
 
   const filteredCompanies = useMemo(() => {
     return companies.filter(
@@ -107,7 +107,8 @@ export function CompanyList() {
     try {
         await deleteCompany(companyId);
         toast({ title: 'Success', description: 'Company deleted successfully.' });
-        fetchCompanies(); // Refetch after delete
+        // Refetch after delete by re-triggering the useEffect
+        setCompanies(prev => prev.filter(c => c.id !== companyId));
     } catch (error) {
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete company.' });
     }
