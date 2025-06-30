@@ -172,7 +172,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
   const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isEditMode = !!quotationId;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -228,7 +228,6 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
 
   useEffect(() => {
     const fetchData = async () => {
-        if (!user) return;
         setIsLoading(true);
         try {
             const [fetchedCompanies, fetchedProfile, quotationToEdit] = await Promise.all([
@@ -275,8 +274,13 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
             setIsLoading(false);
         }
     };
-    fetchData();
-  }, [quotationId, user, isEditMode, form.reset, router, toast]);
+    
+    if (user && !authLoading) {
+      fetchData();
+    } else if (!user && !authLoading) {
+      setIsLoading(false);
+    }
+  }, [quotationId, user, authLoading, isEditMode, form, router, toast]);
 
   const handleSaveProduct = useCallback((productData: Omit<Product, 'id' | 'srNo' | 'total'>) => {
     const productWithTotal = {

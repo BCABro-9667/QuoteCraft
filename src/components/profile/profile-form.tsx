@@ -46,7 +46,7 @@ const defaultProfileValues = {
 
 export function ProfileForm() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -59,23 +59,26 @@ export function ProfileForm() {
   const logoUrl = form.watch('logoUrl');
 
   useEffect(() => {
-    if (user?.id) {
-        const fetchProfile = async () => {
-            setIsLoading(true);
-            try {
-              const profileData = await getProfile();
-              if (profileData) {
-                  form.reset(profileData);
-              }
-            } catch (error) {
-               toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch profile.' });
-            } finally {
-               setIsLoading(false);
-            }
-        };
+    const fetchProfile = async () => {
+        setIsLoading(true);
+        try {
+          const profileData = await getProfile();
+          if (profileData) {
+              form.reset(profileData);
+          }
+        } catch (error) {
+           toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch profile.' });
+        } finally {
+           setIsLoading(false);
+        }
+    };
+
+    if (user && !authLoading) {
         fetchProfile();
+    } else if (!user && !authLoading) {
+        setIsLoading(false);
     }
-  }, [user, form.reset, toast]);
+  }, [user, authLoading, form.reset, toast]);
 
 
   const onSubmit = async (data: ProfileFormValues) => {

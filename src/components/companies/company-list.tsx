@@ -62,11 +62,10 @@ export function CompanyList() {
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
   const fetchCompanies = useCallback(async () => {
-    if (!user) return;
     setIsLoading(true);
     try {
       const fetchedCompanies = await getCompanies();
@@ -76,11 +75,16 @@ export function CompanyList() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    fetchCompanies();
-  }, [fetchCompanies]);
+    if (user && !authLoading) {
+      fetchCompanies();
+    } else if (!user && !authLoading) {
+      // Auth is resolved, but no user. ProtectedRoute will redirect.
+      setIsLoading(false);
+    }
+  }, [user, authLoading, fetchCompanies]);
 
   const filteredCompanies = useMemo(() => {
     return companies.filter(

@@ -93,11 +93,10 @@ export function QuotationList() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
 
   const fetchQuotations = useCallback(async () => {
-    if (!user) return;
     setIsLoading(true);
     try {
         const [fetchedQuotations, fetchedProfile] = await Promise.all([
@@ -111,11 +110,15 @@ export function QuotationList() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [toast]);
 
   useEffect(() => {
-    fetchQuotations();
-  }, [fetchQuotations]);
+    if (user && !authLoading) {
+        fetchQuotations();
+    } else if (!user && !authLoading) {
+        setIsLoading(false);
+    }
+  }, [user, authLoading, fetchQuotations]);
 
   const uniqueLocations = useMemo(() => {
     const locations = new Set(quotations.map(q => q.company?.location).filter(Boolean));
