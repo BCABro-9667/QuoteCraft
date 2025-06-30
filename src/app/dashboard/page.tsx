@@ -79,7 +79,7 @@ const actions = [
 
 
 export default function DashboardPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const [showAlert, setShowAlert] = useState(false);
     const [stats, setStats] = useState<{
@@ -116,10 +116,14 @@ export default function DashboardPage() {
             }
         };
 
-        if (user) {
+        if (user && !authLoading) {
             fetchStats();
+        } else if (!user && !authLoading) {
+            // Auth is resolved, but no user. ProtectedRoute will redirect.
+            // We can stop our own loading spinner.
+            setIsLoading(false);
         }
-    }, [user]);
+    }, [user, authLoading]);
     
   return (
     <ProtectedRoute>
