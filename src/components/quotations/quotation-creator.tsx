@@ -186,7 +186,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
       products: [],
       termsAndConditions: predefinedTerms,
       referencedBy: 'Kamal Puri',
-      createdBy: user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team',
+      createdBy: '',
       progress: 'Pending',
     },
   });
@@ -230,10 +230,9 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [fetchedCompanies, fetchedProfile, quotationToEdit] = await Promise.all([
+            const [fetchedCompanies, fetchedProfile] = await Promise.all([
                 getCompanies(),
                 getProfile(),
-                isEditMode && quotationId ? getQuotation(quotationId) : Promise.resolve(null)
             ]);
             
             setCompanies(fetchedCompanies);
@@ -242,10 +241,12 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
             const createdByName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team';
 
             if (isEditMode && quotationId) {
+                const quotationToEdit = await getQuotation(quotationId);
                 if (quotationToEdit) {
                     form.reset({
                       ...quotationToEdit,
                       date: new Date(quotationToEdit.date).toLocaleDateString('en-CA'),
+                      createdBy: quotationToEdit.createdBy || createdByName,
                     });
                     const company = fetchedCompanies.find(c => c.id === quotationToEdit.companyId);
                     setSelectedCompany(company || null);

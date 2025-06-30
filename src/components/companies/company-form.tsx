@@ -38,7 +38,7 @@ type CompanyFormValues = z.infer<typeof companyFormSchema>;
 export function CompanyForm({ companyId }: { companyId?: string }) {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const isEditMode = !!companyId;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
@@ -53,21 +53,29 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
   });
 
   useEffect(() => {
-    if (isEditMode && companyId) {
-      const fetchCompany = async () => {
-        setIsLoading(true);
-        const company = await getCompany(companyId);
+    const fetchCompany = async () => {
+      setIsLoading(true);
+      try {
+        const company = await getCompany(companyId!);
         if (company) {
           form.reset(company);
         } else {
           toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
           router.push('/companies');
         }
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch company details.' });
+      } finally {
         setIsLoading(false);
-      };
+      }
+    };
+
+    if (isEditMode && companyId && user && !authLoading) {
       fetchCompany();
+    } else if (!isEditMode) {
+      setIsLoading(false);
     }
-  }, [companyId, form, isEditMode, router, toast]);
+  }, [companyId, user, authLoading, isEditMode, form, router, toast]);
 
   const onSubmit = async (data: CompanyFormValues) => {
     if (!user) {
