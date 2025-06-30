@@ -1,9 +1,26 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, FieldArrayWithId } from 'react-hook-form';
 import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   Card,
   CardContent,
@@ -47,7 +64,7 @@ import { quantityTypes, quotationStatuses } from '@/types';
 import { formatCurrency, generateQuotationNumber, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Trash2, PlusCircle, CalendarIcon, Loader2, Edit } from 'lucide-react';
+import { Trash2, PlusCircle, CalendarIcon, Loader2, Edit, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { ProductDialog } from './product-dialog';
 import { getCompanies } from '@/lib/actions/company.actions';
@@ -90,6 +107,63 @@ Delivery: 2-3 Days confirmation of order with advance.
 Validity: 30 Days.
 Jurisdiction: All disputes will be referred to Faridabad, Jurisdiction on only`;
 
+interface SortableProductRowProps {
+    product: FieldArrayWithId<QuotationFormValues, 'products', 'id'>;
+    onEdit: () => void;
+    onRemove: () => void;
+    isSubmitting: boolean;
+  }
+  
+  function SortableProductRow({ product, onEdit, onRemove, isSubmitting }: SortableProductRowProps) {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: product.id });
+  
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+      zIndex: isDragging ? 1 : 0,
+    };
+  
+    return (
+      <TableRow ref={setNodeRef} style={style} data-dragging={isDragging} key={product.id}>
+        <TableCell className="w-12">
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="cursor-grab active:cursor-grabbing"
+                {...attributes}
+                {...listeners}
+            >
+                <GripVertical className="h-4 w-4" />
+            </Button>
+        </TableCell>
+        <TableCell>{product.srNo}</TableCell>
+        <TableCell>{product.name}</TableCell>
+        <TableCell>{product.model}</TableCell>
+        <TableCell>{product.hsn}</TableCell>
+        <TableCell>{product.quantity} {product.quantityType}</TableCell>
+        <TableCell>{formatCurrency(product.price)}</TableCell>
+        <TableCell>{formatCurrency(product.total)}</TableCell>
+        <TableCell className="flex gap-2">
+            <Button type="button" variant="ghost" size="icon" onClick={onEdit} disabled={isSubmitting}>
+                <Edit className="h-4 w-4" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={onRemove} disabled={isSubmitting}>
+                <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
 export function QuotationCreator({ quotationId }: { quotationId?: string }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -117,10 +191,34 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
     },
   });
 
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove, update, replace } = useFieldArray({
     control: form.control,
     name: "products",
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+        const oldIndex = fields.findIndex((field) => field.id === active.id);
+        const newIndex = fields.findIndex((field) => field.id === over.id);
+
+        if (oldIndex !== -1 && newIndex !== -1) {
+            const reorderedProducts = arrayMove(fields, oldIndex, newIndex);
+            const renumberedProducts = reorderedProducts.map((p, index) => ({
+                ...p,
+                srNo: index + 1
+            }));
+            replace(renumberedProducts);
+        }
+    }
+  };
 
   const handleCompanyChange = useCallback((companyId: string) => {
     form.setValue('companyId', companyId, { shouldValidate: true });
@@ -371,50 +469,45 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
             {form.formState.errors.products && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.products.message}</p>}
             </CardHeader>
             <CardContent>
-            <div className="overflow-x-auto">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead>Sr.</TableHead>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead>Model</TableHead>
-                    <TableHead>HSN</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Action</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {fields.map((field, index) => (
-                    <TableRow key={field.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{field.name}</TableCell>
-                        <TableCell>{field.model}</TableCell>
-                        <TableCell>{field.hsn}</TableCell>
-                        <TableCell>{field.quantity} {field.quantityType}</TableCell>
-                        <TableCell>{formatCurrency(field.price)}</TableCell>
-                        <TableCell>{formatCurrency(field.total)}</TableCell>
-                        <TableCell className="flex gap-2">
-                          <Button type="button" variant="ghost" size="icon" onClick={() => handleEditProductClick(index)} disabled={isSubmitting}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} disabled={isSubmitting}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                    {fields.length === 0 && (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <div className="overflow-x-auto">
+                    <Table>
+                    <TableHeader>
                         <TableRow>
-                            <TableCell colSpan={8} className="text-center h-24">
-                                No products added yet.
-                            </TableCell>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Sr.</TableHead>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead>Model</TableHead>
+                        <TableHead>HSN</TableHead>
+                        <TableHead>Qty</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Action</TableHead>
                         </TableRow>
-                    )}
-                </TableBody>
-                </Table>
-            </div>
+                    </TableHeader>
+                    <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+                        <TableBody>
+                            {fields.map((field, index) => (
+                                <SortableProductRow
+                                    key={field.id}
+                                    product={field}
+                                    onEdit={() => handleEditProductClick(index)}
+                                    onRemove={() => remove(index)}
+                                    isSubmitting={isSubmitting}
+                                />
+                            ))}
+                            {fields.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={9} className="text-center h-24">
+                                        No products added yet.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </SortableContext>
+                    </Table>
+                </div>
+            </DndContext>
             </CardContent>
             {fields.length > 0 && (
                 <CardFooter className="flex flex-col items-end gap-2">
