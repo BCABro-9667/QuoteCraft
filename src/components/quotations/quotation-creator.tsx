@@ -359,271 +359,273 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
   }
 
   return (
-    <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-1">
-            <CardHeader>
-                <CardTitle>Client Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <FormField
-                    control={form.control}
-                    name="companyId"
-                    render={({ field }) => (
-                        <FormItem>
-                            <Select onValueChange={handleCompanyChange} value={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a company" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {companies.map((company) => (
-                                    <SelectItem key={company.id} value={company.id}>
-                                    {company.name}
-                                    </SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+    <>
+      <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-1">
+              <CardHeader>
+                  <CardTitle>Client Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                  <FormField
+                      control={form.control}
+                      name="companyId"
+                      render={({ field }) => (
+                          <FormItem>
+                              <Select onValueChange={handleCompanyChange} value={field.value}>
+                                  <FormControl>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Select a company" />
+                                  </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                  {companies.map((company) => (
+                                      <SelectItem key={company.id} value={company.id}>
+                                      {company.name}
+                                      </SelectItem>
+                                  ))}
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
 
-                {selectedCompany && (
-                <div className="text-sm text-muted-foreground space-y-2 border p-3 rounded-md">
-                    <p><strong>Address:</strong> {selectedCompany.address}</p>
-                    <p><strong>Email:</strong> {selectedCompany.email}</p>
-                    <p><strong>Phone:</strong> {selectedCompany.phone}</p>
-                    <p><strong>GSTIN:</strong> {selectedCompany.gstin}</p>
-                </div>
-                )}
-            </CardContent>
-            </Card>
-            <Card className="lg:col-span-2">
-            <CardHeader>
-                <CardTitle>Quotation Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-                <FormField
-                    control={form.control}
-                    name="quotationNumber"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Quotation Number</FormLabel>
-                            <FormControl>
-                                <Input {...field} readOnly={!isEditMode} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col pt-2">
-                             <FormLabel>Quotation Date</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-full pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                    >
-                                    {field.value ? (
-                                        format(new Date(field.value), "PPP")
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => field.onChange(date?.toLocaleDateString('en-CA'))}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-            </Card>
-        </div>
+                  {selectedCompany && (
+                  <div className="text-sm text-muted-foreground space-y-2 border p-3 rounded-md">
+                      <p><strong>Address:</strong> {selectedCompany.address}</p>
+                      <p><strong>Email:</strong> {selectedCompany.email}</p>
+                      <p><strong>Phone:</strong> {selectedCompany.phone}</p>
+                      <p><strong>GSTIN:</strong> {selectedCompany.gstin}</p>
+                  </div>
+                  )}
+              </CardContent>
+              </Card>
+              <Card className="lg:col-span-2">
+              <CardHeader>
+                  <CardTitle>Quotation Details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                  <FormField
+                      control={form.control}
+                      name="quotationNumber"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Quotation Number</FormLabel>
+                              <FormControl>
+                                  <Input {...field} readOnly={!isEditMode} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <FormField
+                      control={form.control}
+                      name="date"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-col pt-2">
+                              <FormLabel>Quotation Date</FormLabel>
+                              <Popover>
+                                  <PopoverTrigger asChild>
+                                  <FormControl>
+                                      <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                          "w-full pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground"
+                                      )}
+                                      >
+                                      {field.value ? (
+                                          format(new Date(field.value), "PPP")
+                                      ) : (
+                                          <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                  </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                      mode="single"
+                                      selected={field.value ? new Date(field.value) : undefined}
+                                      onSelect={(date) => field.onChange(date?.toLocaleDateString('en-CA'))}
+                                      initialFocus
+                                  />
+                                  </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+              </CardContent>
+              </Card>
+          </div>
 
-        <Card>
-            <CardHeader>
-            <div className="flex justify-between items-center">
-                <div>
-                    <CardTitle>Products</CardTitle>
-                    <CardDescription>Add products to the quotation.</CardDescription>
-                </div>
-                <Button type="button" onClick={handleAddProductClick} disabled={isSubmitting}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Product
-                </Button>
-            </div>
-            {form.formState.errors.products && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.products.message}</p>}
-            </CardHeader>
-            <CardContent>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <div className="overflow-x-auto">
-                    <Table>
-                    <TableHeader>
-                        <TableRow>
-                        <TableHead className="w-12"></TableHead>
-                        <TableHead>Sr.</TableHead>
-                        <TableHead>Product Name</TableHead>
-                        <TableHead>Model</TableHead>
-                        <TableHead>HSN</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <SortableContext items={fields} strategy={verticalListSortingStrategy}>
-                        <TableBody>
-                            {fields.map((field, index) => (
-                                <SortableProductRow
-                                    key={field.id}
-                                    product={field}
-                                    onEdit={() => handleEditProductClick(index)}
-                                    onRemove={() => remove(index)}
-                                    isSubmitting={isSubmitting}
-                                />
-                            ))}
-                            {fields.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="text-center h-24">
-                                        No products added yet.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </SortableContext>
-                    </Table>
-                </div>
-            </DndContext>
-            </CardContent>
-            {fields.length > 0 && (
-                <CardFooter className="flex flex-col items-end gap-2">
-                    <Separator />
-                    <div className="w-full md:w-1/3 mt-4">
-                        <div className="flex justify-between font-bold text-lg">
-                            <span>Grand Total</span>
-                            <span>{formatCurrency(grandTotal)}</span>
-                        </div>
-                    </div>
-                </CardFooter>
-            )}
-        </Card>
+          <Card>
+              <CardHeader>
+              <div className="flex justify-between items-center">
+                  <div>
+                      <CardTitle>Products</CardTitle>
+                      <CardDescription>Add products to the quotation.</CardDescription>
+                  </div>
+                  <Button type="button" onClick={handleAddProductClick} disabled={isSubmitting}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+                  </Button>
+              </div>
+              {form.formState.errors.products && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.products.message}</p>}
+              </CardHeader>
+              <CardContent>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <div className="overflow-x-auto">
+                      <Table>
+                      <TableHeader>
+                          <TableRow>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead>Sr.</TableHead>
+                          <TableHead>Product Name</TableHead>
+                          <TableHead>Model</TableHead>
+                          <TableHead>HSN</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead>Total</TableHead>
+                          <TableHead>Action</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <SortableContext items={fields} strategy={verticalListSortingStrategy}>
+                          <TableBody>
+                              {fields.map((field, index) => (
+                                  <SortableProductRow
+                                      key={field.id}
+                                      product={field}
+                                      onEdit={() => handleEditProductClick(index)}
+                                      onRemove={() => remove(index)}
+                                      isSubmitting={isSubmitting}
+                                  />
+                              ))}
+                              {fields.length === 0 && (
+                                  <TableRow>
+                                      <TableCell colSpan={9} className="text-center h-24">
+                                          No products added yet.
+                                      </TableCell>
+                                  </TableRow>
+                              )}
+                          </TableBody>
+                      </SortableContext>
+                      </Table>
+                  </div>
+              </DndContext>
+              </CardContent>
+              {fields.length > 0 && (
+                  <CardFooter className="flex flex-col items-end gap-2">
+                      <Separator />
+                      <div className="w-full md:w-1/3 mt-4">
+                          <div className="flex justify-between font-bold text-lg">
+                              <span>Grand Total</span>
+                              <span>{formatCurrency(grandTotal)}</span>
+                          </div>
+                      </div>
+                  </CardFooter>
+              )}
+          </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Terms &amp; Conditions</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <FormField
-                    control={form.control}
-                    name="termsAndConditions"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormControl>
-                                <Textarea {...field} rows={6} placeholder="Enter terms and conditions..." />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-        </Card>
+          <Card>
+              <CardHeader>
+                  <CardTitle>Terms &amp; Conditions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                  <FormField
+                      control={form.control}
+                      name="termsAndConditions"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormControl>
+                                  <Textarea {...field} rows={6} placeholder="Enter terms and conditions..." />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+              </CardContent>
+          </Card>
 
-        <Card>
-            <CardHeader>
-                <CardTitle>Additional Details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                    control={form.control}
-                    name="referencedBy"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Referenced By</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="createdBy"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Created By</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Sales Team" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="progress"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Progress</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select status" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {quotationStatuses.map((status) => (
-                                        <SelectItem key={status} value={status}>
-                                            {status}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-            </CardContent>
-        </Card>
+          <Card>
+              <CardHeader>
+                  <CardTitle>Additional Details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                      control={form.control}
+                      name="referencedBy"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Referenced By</FormLabel>
+                              <FormControl>
+                                  <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <FormField
+                      control={form.control}
+                      name="createdBy"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Created By</FormLabel>
+                              <FormControl>
+                                  <Input placeholder="e.g. Sales Team" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <FormField
+                      control={form.control}
+                      name="progress"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Progress</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Select status" />
+                                      </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                      {quotationStatuses.map((status) => (
+                                          <SelectItem key={status} value={status}>
+                                              {status}
+                                          </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+              </CardContent>
+          </Card>
 
-        <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isEditMode ? 'Update Quotation' : 'Create Quotation'}
-            </Button>
-        </div>
+          <div className="flex justify-end gap-4">
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isEditMode ? 'Update Quotation' : 'Create Quotation'}
+              </Button>
+          </div>
+          </form>
+      </Form>
 
-        <ProductDialog 
-            isOpen={isProductDialogOpen} 
-            onClose={() => {
-                setProductDialogOpen(false);
-                setEditingProductIndex(null);
-            }} 
-            onSaveProduct={handleSaveProduct}
-            productToEdit={productToEdit}
-        />
-        </form>
-    </Form>
+      <ProductDialog 
+          isOpen={isProductDialogOpen} 
+          onClose={() => {
+              setProductDialogOpen(false);
+              setEditingProductIndex(null);
+          }} 
+          onSaveProduct={handleSaveProduct}
+          productToEdit={productToEdit}
+      />
+    </>
   );
 }
