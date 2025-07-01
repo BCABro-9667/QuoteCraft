@@ -254,7 +254,7 @@ export function QuotationList() {
             try {
                 const dataUrl = await new Promise<string>((resolve, reject) => {
                     const img = new Image();
-                    img.crossOrigin = "Anonymous"; // This is key for loading images from other domains
+                    img.crossOrigin = "Anonymous";
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
                         canvas.width = img.width;
@@ -267,13 +267,14 @@ export function QuotationList() {
                         resolve(canvas.toDataURL('image/png'));
                     };
                     img.onerror = (e) => {
+                      console.error("PDF Logo Load Error:", e);
                       reject(new Error('Failed to load logo image. Check the URL and CORS policy.'));
                     };
                     img.src = userProfile.logoUrl;
                 });
                 doc.addImage(dataUrl, 'PNG', 14, 12, 50, 15);
             } catch (e: any) {
-                console.error("Error adding logo image, proceeding without it:", e.message);
+                console.error("Error adding logo image, proceeding without it:", e);
                 toast({
                     variant: 'destructive',
                     title: 'Logo Warning',
@@ -281,12 +282,12 @@ export function QuotationList() {
                 });
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
-                doc.text(userProfile.companyName, 14, 20);
+                doc.text(userProfile.companyName || 'My Company', 14, 20);
             }
         } else {
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text(userProfile.companyName, 14, 20);
+            doc.text(userProfile.companyName || 'My Company', 14, 20);
         }
 
         doc.setFontSize(8);
@@ -324,24 +325,23 @@ export function QuotationList() {
         doc.text('Ref. No.', headerRightX - 25, currentY, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(0,0,0);
-        doc.text(quotation.quotationNumber, headerRightX, currentY, { align: 'right' });
+        doc.text(quotation.quotationNumber || 'N/A', headerRightX, currentY, { align: 'right' });
         
         currentY += 5;
         doc.setFont('helvetica', 'bold');
         doc.text('Date', headerRightX - 25, currentY, { align: 'right' });
         doc.setFont('helvetica', 'normal');
-        doc.text(new Date(quotation.date).toLocaleDateString('en-GB'), headerRightX, currentY, { align: 'right' });
+        doc.text(quotation.date ? new Date(quotation.date).toLocaleDateString('en-GB') : 'N/A', headerRightX, currentY, { align: 'right' });
         doc.setTextColor(0);
 
         // --- Client Info ---
         let clientY = currentY + 5;
         const addClientInfo = (label: string, value: string | undefined) => {
-            if (!value) return;
             doc.setFont('helvetica', 'bold');
             doc.text(label, 14, clientY);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(orangeColor);
-            doc.text(value, 48, clientY);
+            doc.text(value || 'N/A', 48, clientY);
             doc.setTextColor(0);
             clientY += 6;
         }
@@ -372,13 +372,13 @@ export function QuotationList() {
         currentY += (splitIntro.length * 5) + 3;
 
         // --- Products Table ---
-        const tableBody = quotation.products.map(p => ([
-            String(p.srNo || ''),
-            p.name || '', // Placeholder for didParseCell
-            p.hsn || '',
-            `${p.quantity || ''} ${p.quantityType || ''}`.trim(),
-            formatNumberForPdf(p.price || 0),
-            formatNumberForPdf(p.total || 0),
+        const tableBody = (quotation.products || []).map(p => ([
+            p?.srNo ?? 'N/A',
+            p?.name ?? '', // This is a placeholder for didParseCell, which handles name and model
+            p?.hsn ?? 'N/A',
+            `${p?.quantity ?? 0} ${p?.quantityType ?? ''}`.trim(),
+            formatNumberForPdf(p?.price ?? 0),
+            formatNumberForPdf(p?.total ?? 0),
         ]));
 
         autoTable(doc, {
@@ -409,15 +409,18 @@ export function QuotationList() {
             },
             didParseCell: (data) => {
                 if (data.section === 'body' && data.column.dataKey === 1) { // Description column
-                    const product = quotation.products[data.row.index];
+                    const product = quotation.products?.[data.row.index];
                     if (product) {
                         data.cell.text = []; // Clear original text
                         
+                        const productName = product.name ?? 'N/A';
+                        const productModel = product.model ?? 'N/A';
+                        
                         const nameStyle = { font: 'helvetica', fontStyle: 'normal' };
-                        data.cell.text.push({ content: product.name || '', styles: nameStyle });
+                        data.cell.text.push({ content: productName, styles: nameStyle });
 
                         const modelStyle = { font: 'helvetica', fontStyle: 'italic', fontSize: 8 };
-                        data.cell.text.push({ content: `(Model No: ${product.model || ''})`, styles: modelStyle });
+                        data.cell.text.push({ content: `(Model No: ${productModel})`, styles: modelStyle });
                     }
                 }
             },
@@ -468,7 +471,7 @@ export function QuotationList() {
                     doc.setFont('helvetica', 'normal');
                     doc.text(`• ${term.key}`, 18, finalY);
                     doc.text(':', 50, finalY);
-                    doc.text(term.value, 55, finalY);
+                    doc.text(term.value || 'N/A', 55, finalY);
                     finalY += 5;
                 }
             });
@@ -489,7 +492,7 @@ export function QuotationList() {
         finalY += 15;
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(245, 130, 32);
-        doc.text(`For ${userProfile.companyName.toUpperCase()}`, 14, finalY);
+        doc.text(`For ${(userProfile.companyName || 'My Company').toUpperCase()}`, 14, finalY);
         doc.setTextColor(0);
 
         finalY += 20;
