@@ -52,7 +52,7 @@ import {
   } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import type { Quotation, UserProfile, QuotationStatus, Company } from '@/types';
+import type { Quotation, UserProfile, QuotationStatus, Company, Product } from '@/types';
 import { quotationStatuses } from '@/types';
 import {
   PlusCircle,
@@ -268,7 +268,7 @@ export function QuotationList() {
                     };
                     img.onerror = (e) => {
                       console.error("PDF Logo Load Error:", e);
-                      reject(new Error('Failed to load logo image. Check the URL and CORS policy.'));
+                      reject(new Error('Failed to load logo. Check URL and CORS.'));
                     };
                     img.src = userProfile.logoUrl;
                 });
@@ -336,12 +336,12 @@ export function QuotationList() {
 
         // --- Client Info ---
         let clientY = currentY + 5;
-        const addClientInfo = (label: string, value: string | undefined) => {
+        const addClientInfo = (label: string, value: string | undefined | null) => {
             doc.setFont('helvetica', 'bold');
             doc.text(label, 14, clientY);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(orangeColor);
-            doc.text(value || 'N/A', 48, clientY);
+            doc.text(String(value || 'N/A'), 48, clientY);
             doc.setTextColor(0);
             clientY += 6;
         }
@@ -373,10 +373,10 @@ export function QuotationList() {
 
         // --- Products Table ---
         const tableBody = (quotation.products || []).map(p => ([
-            p?.srNo ?? 'N/A',
-            p?.name ?? '', // This is a placeholder for didParseCell, which handles name and model
-            p?.hsn ?? 'N/A',
-            `${p?.quantity ?? 0} ${p?.quantityType ?? ''}`.trim(),
+            String(p?.srNo ?? 'N/A'),
+            String(p?.name ?? ''), // This is a placeholder for didParseCell, which handles name and model
+            String(p?.hsn ?? 'N/A'),
+            `${String(p?.quantity ?? '0')} ${String(p?.quantityType ?? '')}`.trim(),
             formatNumberForPdf(p?.price ?? 0),
             formatNumberForPdf(p?.total ?? 0),
         ]));
@@ -413,8 +413,8 @@ export function QuotationList() {
                     if (product) {
                         data.cell.text = []; // Clear original text
                         
-                        const productName = product.name ?? 'N/A';
-                        const productModel = product.model ?? 'N/A';
+                        const productName = String(product.name ?? 'N/A');
+                        const productModel = String(product.model ?? 'N/A');
                         
                         const nameStyle = { font: 'helvetica', fontStyle: 'normal' };
                         data.cell.text.push({ content: productName, styles: nameStyle });
@@ -439,7 +439,7 @@ export function QuotationList() {
 
 
         // --- Terms & Conditions ---
-        if (quotation.termsAndConditions) {
+        if (quotation.termsAndConditions && typeof quotation.termsAndConditions === 'string') {
             if (finalY > pageHeight - 80) { // Check if space is available for T&C
                 doc.addPage();
                 finalY = 20;
