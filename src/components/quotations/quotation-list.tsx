@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -224,7 +225,7 @@ export function QuotationList() {
     document.body.removeChild(link);
   };
 
-  const handleDownloadPdf = (quotation: Quotation) => {
+  const handleDownloadPdf = async (quotation: Quotation) => {
     try {
         if (!quotation.company) {
             toast({
@@ -251,12 +252,18 @@ export function QuotationList() {
         // --- Header ---
         if (userProfile.logoUrl) {
             try {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous'; // Handle CORS
-                img.src = userProfile.logoUrl;
-                doc.addImage(img, 'PNG', 14, 12, 50, 15);
+                // Fetch the image and convert it to a data URI
+                const response = await fetch(userProfile.logoUrl);
+                const blob = await response.blob();
+                const reader = new FileReader();
+                const dataUrl = await new Promise<string>((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+                doc.addImage(dataUrl, 'PNG', 14, 12, 50, 15);
             } catch (e) {
-                console.error("Error adding logo image:", e);
+                console.error("Error adding logo image, proceeding without it:", e);
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
                 doc.text(userProfile.companyName, 14, 20);
