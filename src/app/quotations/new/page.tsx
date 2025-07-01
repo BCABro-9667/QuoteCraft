@@ -1,10 +1,13 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { QuotationCreator } from "@/components/quotations/quotation-creator";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 
-export default function NewQuotationPage({ searchParams }: { searchParams: { id?: string } }) {
-    const quotationId = searchParams.id;
+export default function NewQuotationPage() {
+    const searchParams = useSearchParams();
+    const quotationId = searchParams.get('id');
+
     return (
         <ProtectedRoute>
             <div className="space-y-6">
@@ -14,7 +17,7 @@ export default function NewQuotationPage({ searchParams }: { searchParams: { id?
                     {quotationId ? 'Update the details for this quotation.' : 'Fill in the details below to generate a new quotation.'}
                     </p>
                 </div>
-                <QuotationCreator quotationId={quotationId} />
+                <QuotationCreator quotationId={quotationId ?? undefined} />
             </div>
         </ProtectedRoute>
     )

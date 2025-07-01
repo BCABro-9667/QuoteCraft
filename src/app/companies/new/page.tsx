@@ -1,11 +1,13 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { CompanyForm } from "@/components/companies/company-form";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 
-export default function NewCompanyPage({ searchParams }: { searchParams: { id?: string } }) {
-    const companyId = searchParams.id;
+export default function NewCompanyPage() {
+    const searchParams = useSearchParams();
+    const companyId = searchParams.get('id');
 
     return (
         <ProtectedRoute>
@@ -16,7 +18,7 @@ export default function NewCompanyPage({ searchParams }: { searchParams: { id?: 
                         <CardDescription>{companyId ? 'Update the company details.' : 'Enter the details for the new company.'}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <CompanyForm companyId={companyId} />
+                        <CompanyForm companyId={companyId ?? undefined} />
                     </CardContent>
                 </Card>
             </div>
