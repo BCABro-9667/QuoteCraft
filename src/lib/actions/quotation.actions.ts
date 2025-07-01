@@ -10,74 +10,114 @@ import { getAuthenticatedUserId } from "../session";
 const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
 export async function getQuotations(): Promise<Quotation[]> {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) return [];
-    await dbConnect();
-    const quotations = await QuotationModel.find({ userId }).sort({ date: -1 });
-    
-    const plainQuotations = plain(quotations);
+    try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return [];
+        await dbConnect();
+        const quotations = await QuotationModel.find({ userId }).sort({ date: -1 });
+        
+        const plainQuotations = plain(quotations);
 
-    // Enrich with company data
-    for (const q of plainQuotations) {
-        if (q.companyId) {
-            q.company = plain(await CompanyModel.findById(q.companyId));
+        // Enrich with company data
+        for (const q of plainQuotations) {
+            if (q.companyId) {
+                q.company = plain(await CompanyModel.findById(q.companyId));
+            }
         }
+        
+        return plainQuotations;
+    } catch (error: any) {
+        console.error('Database Error: Failed to get quotations.', error);
+        throw new Error(`Failed to fetch quotations. ${error.message}`);
     }
-    
-    return plainQuotations;
 }
 
 export async function getQuotation(quotationId: string): Promise<Quotation | null> {
-    await dbConnect();
-    const quotation = await QuotationModel.findById(quotationId);
-    return plain(quotation);
+    try {
+        await dbConnect();
+        const quotation = await QuotationModel.findById(quotationId);
+        return plain(quotation);
+    } catch (error: any) {
+        console.error(`Database Error: Failed to get quotation ${quotationId}.`, error);
+        throw new Error(`Failed to fetch quotation details. ${error.message}`);
+    }
 }
 
 export async function getQuotationCountForNumber(): Promise<number> {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) return 0;
-    await dbConnect();
-    return QuotationModel.countDocuments({ userId });
+    try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return 0;
+        await dbConnect();
+        return QuotationModel.countDocuments({ userId });
+    } catch (error: any) {
+        console.error('Database Error: Failed to get quotation count.', error);
+        throw new Error(`Failed to fetch quotation count. ${error.message}`);
+    }
 }
 
 export async function createQuotation(quotationData: Omit<Quotation, 'id'>) {
     const userId = await getAuthenticatedUserId();
     if (!userId) throw new Error("Authentication required.");
-    await dbConnect();
-    await QuotationModel.create({ ...quotationData, userId });
-    revalidatePath('/quotations');
+    try {
+        await dbConnect();
+        await QuotationModel.create({ ...quotationData, userId });
+        revalidatePath('/quotations');
+    } catch (error: any) {
+        console.error('Database Error: Failed to create quotation.', error);
+        throw new Error(`Failed to create quotation. ${error.message}`);
+    }
 }
 
 export async function updateQuotation(quotationId: string, quotationData: Partial<Quotation>) {
-    await dbConnect();
-    await QuotationModel.findByIdAndUpdate(quotationId, quotationData);
-    revalidatePath('/quotations');
-    revalidatePath(`/quotations/new?id=${quotationId}`);
+    try {
+        await dbConnect();
+        await QuotationModel.findByIdAndUpdate(quotationId, quotationData);
+        revalidatePath('/quotations');
+        revalidatePath(`/quotations/new?id=${quotationId}`);
+    } catch (error: any) {
+        console.error(`Database Error: Failed to update quotation ${quotationId}.`, error);
+        throw new Error(`Failed to update quotation. ${error.message}`);
+    }
 }
 
 export async function deleteQuotation(quotationId: string) {
-    await dbConnect();
-    await QuotationModel.findByIdAndDelete(quotationId);
-    revalidatePath('/quotations');
+    try {
+        await dbConnect();
+        await QuotationModel.findByIdAndDelete(quotationId);
+        revalidatePath('/quotations');
+    } catch (error: any) {
+        console.error(`Database Error: Failed to delete quotation ${quotationId}.`, error);
+        throw new Error(`Failed to delete quotation. ${error.message}`);
+    }
 }
 
 export async function updateQuotationProgress(quotationId: string, progress: QuotationStatus) {
-    await dbConnect();
-    await QuotationModel.findByIdAndUpdate(quotationId, { progress });
-    revalidatePath('/quotations');
+    try {
+        await dbConnect();
+        await QuotationModel.findByIdAndUpdate(quotationId, { progress });
+        revalidatePath('/quotations');
+    } catch (error: any) {
+        console.error(`Database Error: Failed to update quotation progress for ${quotationId}.`, error);
+        throw new Error(`Failed to update quotation status. ${error.message}`);
+    }
 }
 
 export async function getQuotationStats(): Promise<{ total: number; pending: number; completed: number; rejected: number }> {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) {
-        return { total: 0, pending: 0, completed: 0, rejected: 0 };
+    try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) {
+            return { total: 0, pending: 0, completed: 0, rejected: 0 };
+        }
+        await dbConnect();
+        const [total, pending, completed, rejected] = await Promise.all([
+            QuotationModel.countDocuments({ userId }),
+            QuotationModel.countDocuments({ userId, progress: 'Pending' }),
+            QuotationModel.countDocuments({ userId, progress: 'Complete' }),
+            QuotationModel.countDocuments({ userId, progress: 'Rejected' })
+        ]);
+        return { total, pending, completed, rejected };
+    } catch (error: any) {
+        console.error('Database Error: Failed to get quotation stats.', error);
+        throw new Error(`Failed to fetch quotation stats. ${error.message}`);
     }
-    await dbConnect();
-    const [total, pending, completed, rejected] = await Promise.all([
-        QuotationModel.countDocuments({ userId }),
-        QuotationModel.countDocuments({ userId, progress: 'Pending' }),
-        QuotationModel.countDocuments({ userId, progress: 'Complete' }),
-        QuotationModel.countDocuments({ userId, progress: 'Rejected' })
-    ]);
-    return { total, pending, completed, rejected };
 }

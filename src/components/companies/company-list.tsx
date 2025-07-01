@@ -72,9 +72,9 @@ export function CompanyList() {
         try {
           const fetchedCompanies = await getCompanies();
           setCompanies(fetchedCompanies);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to fetch companies:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch companies.' });
+          toast({ variant: 'destructive', title: 'Error Fetching Companies', description: error.message });
         } finally {
           setIsLoading(false);
         }
@@ -110,8 +110,8 @@ export function CompanyList() {
         toast({ title: 'Success', description: 'Company deleted successfully.' });
         // Refetch after delete by re-triggering the useEffect
         setCompanies(prev => prev.filter(c => c.id !== companyId));
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete company.' });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error Deleting Company', description: error.message });
     }
   };
 

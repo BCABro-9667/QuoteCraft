@@ -65,9 +65,9 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
               toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
               router.push('/companies');
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error('Failed to fetch company details:', error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch company details.' });
+            toast({ variant: 'destructive', title: 'Error Fetching Company', description: error.message });
           } finally {
             setIsLoading(false);
           }
@@ -101,8 +101,8 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
         }
         router.push('/companies');
         router.refresh(); // To reflect changes in the list
-    } catch (error) {
-        toast({ variant: 'destructive', title: "Error", description: "Failed to save company." });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: "Error Saving Company", description: error.message });
         setIsSubmitting(false);
     }
   };

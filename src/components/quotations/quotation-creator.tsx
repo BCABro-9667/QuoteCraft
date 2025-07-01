@@ -269,9 +269,9 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                     });
                     setSelectedCompany(null);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to load quotation data:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Failed to load initial data.' });
+                toast({ variant: 'destructive', title: 'Error Loading Data', description: error.message });
             } finally {
                 setIsLoading(false);
             }
@@ -338,8 +338,8 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
         }
         router.push('/quotations');
         router.refresh();
-    } catch (error) {
-        toast({ variant: 'destructive', title: "Error", description: "Failed to save quotation." });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: "Error Saving Quotation", description: error.message });
     } finally {
         setIsSubmitting(false);
     }

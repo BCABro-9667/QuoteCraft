@@ -29,6 +29,7 @@ import { getCompanyCount } from '@/lib/actions/company.actions';
 import { getQuotationStats } from '@/lib/actions/quotation.actions';
 import { useAuth } from '@/hooks/use-auth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 interface StatCardProps {
     title: string;
@@ -87,6 +88,7 @@ export default function DashboardPage() {
         quotations: { total: number; pending: number; completed: number; rejected: number };
     } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (searchParams.get('login') === 'success') {
@@ -110,8 +112,13 @@ export default function DashboardPage() {
                         getQuotationStats(),
                     ]);
                     setStats({ companies: companyCount, quotations: quotationStats });
-                } catch (error) {
+                } catch (error: any) {
                     console.error("Failed to fetch dashboard stats:", error);
+                    toast({
+                      variant: 'destructive',
+                      title: 'Failed to load dashboard stats',
+                      description: error.message,
+                    });
                 } finally {
                     setIsLoading(false);
                 }
@@ -120,7 +127,7 @@ export default function DashboardPage() {
         } else if (!authLoading && !user) {
             setIsLoading(false);
         }
-    }, [user, authLoading]);
+    }, [user, authLoading, toast]);
     
   return (
     <ProtectedRoute>

@@ -9,43 +9,73 @@ import { getAuthenticatedUserId } from "../session";
 const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
 export async function getCompanies(): Promise<Company[]> {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) return []; // Return empty array if not authenticated
-    await dbConnect();
-    const companies = await CompanyModel.find({ userId }).sort({ name: 1 });
-    return plain(companies);
+    try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return [];
+        await dbConnect();
+        const companies = await CompanyModel.find({ userId }).sort({ name: 1 });
+        return plain(companies);
+    } catch (error: any) {
+        console.error('Database Error: Failed to get companies.', error);
+        throw new Error(`Failed to fetch companies. ${error.message}`);
+    }
 }
 
 export async function getCompany(companyId: string): Promise<Company | null> {
-    await dbConnect();
-    const company = await CompanyModel.findById(companyId);
-    return plain(company);
+    try {
+        await dbConnect();
+        const company = await CompanyModel.findById(companyId);
+        return plain(company);
+    } catch (error: any) {
+        console.error(`Database Error: Failed to get company ${companyId}.`, error);
+        throw new Error(`Failed to fetch company details. ${error.message}`);
+    }
 }
 
 export async function createCompany(companyData: Omit<Company, 'id'>) {
     const userId = await getAuthenticatedUserId();
     if (!userId) throw new Error("Authentication required.");
-    await dbConnect();
-    await CompanyModel.create({ ...companyData, userId });
-    revalidatePath('/companies');
+    try {
+        await dbConnect();
+        await CompanyModel.create({ ...companyData, userId });
+        revalidatePath('/companies');
+    } catch (error: any) {
+        console.error('Database Error: Failed to create company.', error);
+        throw new Error(`Failed to create company. ${error.message}`);
+    }
 }
 
 export async function updateCompany(companyId: string, companyData: Partial<Company>) {
-    await dbConnect();
-    await CompanyModel.findByIdAndUpdate(companyId, companyData);
-    revalidatePath('/companies');
-    revalidatePath(`/companies/new?id=${companyId}`);
+    try {
+        await dbConnect();
+        await CompanyModel.findByIdAndUpdate(companyId, companyData);
+        revalidatePath('/companies');
+        revalidatePath(`/companies/new?id=${companyId}`);
+    } catch (error: any) {
+        console.error(`Database Error: Failed to update company ${companyId}.`, error);
+        throw new Error(`Failed to update company. ${error.message}`);
+    }
 }
 
 export async function deleteCompany(companyId: string) {
-    await dbConnect();
-    await CompanyModel.findByIdAndDelete(companyId);
-    revalidatePath('/companies');
+    try {
+        await dbConnect();
+        await CompanyModel.findByIdAndDelete(companyId);
+        revalidatePath('/companies');
+    } catch (error: any) {
+        console.error(`Database Error: Failed to delete company ${companyId}.`, error);
+        throw new Error(`Failed to delete company. ${error.message}`);
+    }
 }
 
 export async function getCompanyCount(): Promise<number> {
-    const userId = await getAuthenticatedUserId();
-    if (!userId) return 0; // Return 0 if not authenticated
-    await dbConnect();
-    return CompanyModel.countDocuments({ userId });
+    try {
+        const userId = await getAuthenticatedUserId();
+        if (!userId) return 0;
+        await dbConnect();
+        return CompanyModel.countDocuments({ userId });
+    } catch (error: any) {
+        console.error('Database Error: Failed to get company count.', error);
+        throw new Error(`Failed to fetch company count. ${error.message}`);
+    }
 }

@@ -108,9 +108,9 @@ export function QuotationList() {
           ]);
           setQuotations(fetchedQuotations);
           setUserProfile(fetchedProfile);
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to fetch quotations:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch quotations.' });
+          toast({ variant: 'destructive', title: 'Error Fetching Data', description: error.message });
         } finally {
           setIsLoading(false);
         }
@@ -176,8 +176,8 @@ export function QuotationList() {
         await deleteQuotation(quotationId);
         toast({ title: "Success", description: "Quotation deleted successfully." });
         setQuotations(prev => prev.filter(q => q.id !== quotationId));
-    } catch (error) {
-        toast({ variant: 'destructive', title: "Error", description: "Failed to delete quotation." });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: "Error Deleting Quotation", description: error.message });
     }
   };
   
@@ -187,8 +187,8 @@ export function QuotationList() {
         // Optimistic update
         setQuotations(prev => prev.map(q => q.id === quotationId ? { ...q, progress: newProgress } : q));
         toast({ title: "Status Updated", description: "Quotation progress has been updated." });
-    } catch (error) {
-        toast({ variant: 'destructive', title: "Error", description: "Failed to update status." });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: "Error Updating Status", description: error.message });
         // Revert optimistic update on error by refetching, though not ideal.
         // A better approach would be to store the old state and revert.
     }
@@ -497,12 +497,12 @@ export function QuotationList() {
         doc.text('Authorized signature', 14, finalY);
         
         doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to generate PDF:", error);
         toast({
             variant: 'destructive',
             title: 'PDF Generation Failed',
-            description: 'An unexpected error occurred while creating the PDF.',
+            description: error.message || 'An unexpected error occurred while creating the PDF.',
         });
     }
   };

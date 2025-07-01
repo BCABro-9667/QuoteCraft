@@ -67,9 +67,9 @@ export function ProfileForm() {
           if (profileData) {
             form.reset(profileData);
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to fetch profile:', error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch profile.' });
+          toast({ variant: 'destructive', title: 'Error Fetching Profile', description: error.message });
         } finally {
           setIsLoading(false);
         }
@@ -90,8 +90,8 @@ export function ProfileForm() {
     try {
         await updateProfile(data);
         toast({ title: "Success", description: "Profile updated successfully." });
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to update profile.' });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error Updating Profile', description: error.message });
     } finally {
         setIsSubmitting(false);
     }
