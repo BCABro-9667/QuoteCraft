@@ -261,20 +261,24 @@ export function QuotationList() {
                         canvas.height = img.height;
                         const ctx = canvas.getContext('2d');
                         if (!ctx) {
-                            return reject(new Error('Could not get canvas context'));
+                            return reject(new Error('Could not get 2D context from canvas.'));
                         }
                         ctx.drawImage(img, 0, 0);
                         resolve(canvas.toDataURL('image/png'));
                     };
-                    img.onerror = (err) => {
-                        console.error("Image loading error:", err);
-                        reject(new Error('Failed to load image for PDF'));
+                    img.onerror = () => {
+                      reject(new Error('Failed to load logo image. Check the URL and CORS policy.'));
                     };
                     img.src = userProfile.logoUrl;
                 });
                 doc.addImage(dataUrl, 'PNG', 14, 12, 50, 15);
-            } catch (e) {
-                console.error("Error adding logo image, proceeding without it:", e);
+            } catch (e: any) {
+                console.error("Error adding logo image, proceeding without it:", e.message);
+                toast({
+                    variant: 'destructive',
+                    title: 'Logo Warning',
+                    description: `${e.message || 'Could not load logo.'} Continuing without it.`,
+                });
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
                 doc.text(userProfile.companyName, 14, 20);
@@ -289,7 +293,7 @@ export function QuotationList() {
         doc.setFont('helvetica', 'bold');
         const headerRightX = pageWidth - 14;
         
-        const companyAddressText = `Address: ${userProfile.address}` || '';
+        const companyAddressText = `Address: ${userProfile.address || ''}`;
         const companyAddressLines = doc.splitTextToSize(companyAddressText, 80);
         let rightHeaderY = 12;
         doc.text(companyAddressLines, headerRightX, rightHeaderY, { align: 'right' });
