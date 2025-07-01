@@ -252,14 +252,25 @@ export function QuotationList() {
         // --- Header ---
         if (userProfile.logoUrl) {
             try {
-                // Fetch the image and convert it to a data URI
-                const response = await fetch(userProfile.logoUrl);
-                const blob = await response.blob();
-                const reader = new FileReader();
                 const dataUrl = await new Promise<string>((resolve, reject) => {
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
+                    const img = new Image();
+                    img.crossOrigin = "Anonymous"; // This is key for loading images from other domains
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) {
+                            return reject(new Error('Could not get canvas context'));
+                        }
+                        ctx.drawImage(img, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    };
+                    img.onerror = (err) => {
+                        console.error("Image loading error:", err);
+                        reject(new Error('Failed to load image for PDF'));
+                    };
+                    img.src = userProfile.logoUrl;
                 });
                 doc.addImage(dataUrl, 'PNG', 14, 12, 50, 15);
             } catch (e) {
