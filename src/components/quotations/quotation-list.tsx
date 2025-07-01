@@ -266,7 +266,7 @@ export function QuotationList() {
                         ctx.drawImage(img, 0, 0);
                         resolve(canvas.toDataURL('image/png'));
                     };
-                    img.onerror = () => {
+                    img.onerror = (e) => {
                       reject(new Error('Failed to load logo image. Check the URL and CORS policy.'));
                     };
                     img.src = userProfile.logoUrl;
@@ -277,7 +277,7 @@ export function QuotationList() {
                 toast({
                     variant: 'destructive',
                     title: 'Logo Warning',
-                    description: `${e.message || 'Could not load logo.'} Continuing without it.`,
+                    description: `${e.message || 'Could not load logo.'} Continuing with text fallback.`,
                 });
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
@@ -813,3 +813,5 @@ export function QuotationList() {
     </Card>
   );
 }
+
+    
