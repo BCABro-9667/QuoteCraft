@@ -373,12 +373,12 @@ export function QuotationList() {
 
         // --- Products Table ---
         const tableBody = quotation.products.map(p => ([
-            p.srNo.toString(),
-            p.name, // Will be styled in didParseCell
-            p.hsn,
-            `${String(p.quantity)} ${p.quantityType}`,
-            formatNumberForPdf(p.price),
-            formatNumberForPdf(p.total),
+            String(p.srNo || ''),
+            p.name || '', // Placeholder for didParseCell
+            p.hsn || '',
+            `${p.quantity || ''} ${p.quantityType || ''}`.trim(),
+            formatNumberForPdf(p.price || 0),
+            formatNumberForPdf(p.total || 0),
         ]));
 
         autoTable(doc, {
@@ -414,10 +414,10 @@ export function QuotationList() {
                         data.cell.text = []; // Clear original text
                         
                         const nameStyle = { font: 'helvetica', fontStyle: 'normal' };
-                        data.cell.text.push({ content: product.name, styles: nameStyle });
+                        data.cell.text.push({ content: product.name || '', styles: nameStyle });
 
                         const modelStyle = { font: 'helvetica', fontStyle: 'italic', fontSize: 8 };
-                        data.cell.text.push({ content: `(Model No: ${product.model})`, styles: modelStyle });
+                        data.cell.text.push({ content: `(Model No: ${product.model || ''})`, styles: modelStyle });
                     }
                 }
             },
