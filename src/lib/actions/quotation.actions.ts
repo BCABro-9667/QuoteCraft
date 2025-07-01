@@ -11,6 +11,7 @@ const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
 export async function getQuotations(): Promise<Quotation[]> {
     const userId = await getAuthenticatedUserId();
+    if (!userId) return [];
     await dbConnect();
     const quotations = await QuotationModel.find({ userId }).sort({ date: -1 });
     
@@ -34,12 +35,14 @@ export async function getQuotation(quotationId: string): Promise<Quotation | nul
 
 export async function getQuotationCountForNumber(): Promise<number> {
     const userId = await getAuthenticatedUserId();
+    if (!userId) return 0;
     await dbConnect();
     return QuotationModel.countDocuments({ userId });
 }
 
 export async function createQuotation(quotationData: Omit<Quotation, 'id'>) {
     const userId = await getAuthenticatedUserId();
+    if (!userId) throw new Error("Authentication required.");
     await dbConnect();
     await QuotationModel.create({ ...quotationData, userId });
     revalidatePath('/quotations');
@@ -66,6 +69,9 @@ export async function updateQuotationProgress(quotationId: string, progress: Quo
 
 export async function getQuotationStats(): Promise<{ total: number; pending: number; completed: number; rejected: number }> {
     const userId = await getAuthenticatedUserId();
+    if (!userId) {
+        return { total: 0, pending: 0, completed: 0, rejected: 0 };
+    }
     await dbConnect();
     const [total, pending, completed, rejected] = await Promise.all([
         QuotationModel.countDocuments({ userId }),

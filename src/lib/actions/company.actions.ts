@@ -10,6 +10,7 @@ const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
 export async function getCompanies(): Promise<Company[]> {
     const userId = await getAuthenticatedUserId();
+    if (!userId) return []; // Return empty array if not authenticated
     await dbConnect();
     const companies = await CompanyModel.find({ userId }).sort({ name: 1 });
     return plain(companies);
@@ -23,6 +24,7 @@ export async function getCompany(companyId: string): Promise<Company | null> {
 
 export async function createCompany(companyData: Omit<Company, 'id'>) {
     const userId = await getAuthenticatedUserId();
+    if (!userId) throw new Error("Authentication required.");
     await dbConnect();
     await CompanyModel.create({ ...companyData, userId });
     revalidatePath('/companies');
@@ -43,6 +45,7 @@ export async function deleteCompany(companyId: string) {
 
 export async function getCompanyCount(): Promise<number> {
     const userId = await getAuthenticatedUserId();
+    if (!userId) return 0; // Return 0 if not authenticated
     await dbConnect();
     return CompanyModel.countDocuments({ userId });
 }

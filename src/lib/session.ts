@@ -53,10 +53,11 @@ export async function deleteSession() {
     cookies().delete('session');
 }
 
-export async function getAuthenticatedUserId(): Promise<string> {
+export async function getAuthenticatedUserId(): Promise<string | null> {
     const session = await getSession();
     if (!session?.user?.id) {
-        throw new Error("Authentication required. Please log in.");
+        // Return null instead of throwing an error for fetch operations
+        return null;
     }
     return session.user.id;
 }
