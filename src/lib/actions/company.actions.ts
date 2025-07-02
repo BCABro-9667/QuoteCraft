@@ -34,10 +34,25 @@ export async function getCompany(companyId: string): Promise<Company | null> {
 
 export async function createCompany(companyData: Omit<Company, 'id'>) {
     const userId = await getAuthenticatedUserId();
-    if (!userId) throw new Error("Authentication required.");
+    if (!userId) {
+        throw new Error("Authentication required.");
+    }
+
+    const { name, address, location, email, phone, contactPerson, gstin, remarks } = companyData;
+    
     try {
         await dbConnect();
-        await CompanyModel.create({ ...companyData, userId });
+        await CompanyModel.create({
+            userId,
+            name,
+            address,
+            location,
+            email,
+            phone,
+            contactPerson,
+            gstin,
+            remarks
+        });
         revalidatePath('/companies');
     } catch (error: any) {
         console.error('Database Error: Failed to create company.', error);
@@ -46,8 +61,18 @@ export async function createCompany(companyData: Omit<Company, 'id'>) {
 }
 
 export async function updateCompany(companyId: string, companyData: Partial<Company>) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) {
+        throw new Error("Authentication required.");
+    }
     try {
         await dbConnect();
+        const companyToUpdate = await CompanyModel.findOne({ _id: companyId, userId });
+
+        if (!companyToUpdate) {
+            throw new Error("Company not found or permission denied.");
+        }
+
         await CompanyModel.findByIdAndUpdate(companyId, companyData);
         revalidatePath('/companies');
         revalidatePath(`/companies/new?id=${companyId}`);
