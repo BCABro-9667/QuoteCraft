@@ -40,6 +40,10 @@ export async function createCompany(companyData: Omit<Company, 'id'>) {
 
     const { name, address, location, email, phone, contactPerson, gstin, remarks } = companyData;
     
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        throw new Error("Company Name is a required field.");
+    }
+
     try {
         await dbConnect();
         await CompanyModel.create({
@@ -56,6 +60,10 @@ export async function createCompany(companyData: Omit<Company, 'id'>) {
         revalidatePath('/companies');
     } catch (error: any) {
         console.error('Database Error: Failed to create company.', error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map((err: any) => err.message).join(', ');
+            throw new Error(`Validation Error: ${messages}`);
+        }
         throw new Error(`Failed to create company. ${error.message}`);
     }
 }
@@ -65,6 +73,31 @@ export async function updateCompany(companyId: string, companyData: Partial<Comp
     if (!userId) {
         throw new Error("Authentication required.");
     }
+
+    const { name, address, location, email, phone, contactPerson, gstin, remarks } = companyData;
+    const updateData: Partial<Omit<Company, 'id'>> = {};
+
+    if (name !== undefined) {
+        if (typeof name !== 'string' || name.trim().length === 0) {
+            throw new Error("Company Name is a required field.");
+        }
+        updateData.name = name;
+    }
+
+    // Only add fields to the update object if they are present in companyData
+    if (address !== undefined) updateData.address = address;
+    if (location !== undefined) updateData.location = location;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (contactPerson !== undefined) updateData.contactPerson = contactPerson;
+    if (gstin !== undefined) updateData.gstin = gstin;
+    if (remarks !== undefined) updateData.remarks = remarks;
+
+    // If there's nothing to update, just return.
+    if (Object.keys(updateData).length === 0) {
+        return;
+    }
+    
     try {
         await dbConnect();
         const companyToUpdate = await CompanyModel.findOne({ _id: companyId, userId });
@@ -73,18 +106,31 @@ export async function updateCompany(companyId: string, companyData: Partial<Comp
             throw new Error("Company not found or permission denied.");
         }
 
-        await CompanyModel.findByIdAndUpdate(companyId, companyData);
+        await CompanyModel.findByIdAndUpdate(companyId, updateData);
         revalidatePath('/companies');
         revalidatePath(`/companies/new?id=${companyId}`);
     } catch (error: any) {
         console.error(`Database Error: Failed to update company ${companyId}.`, error);
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map((err: any) => err.message).join(', ');
+            throw new Error(`Validation Error: ${messages}`);
+        }
         throw new Error(`Failed to update company. ${error.message}`);
     }
 }
 
 export async function deleteCompany(companyId: string) {
+    const userId = await getAuthenticatedUserId();
+    if(!userId) throw new Error("Authentication required.");
+    
     try {
         await dbConnect();
+        
+        const companyToDelete = await CompanyModel.findOne({ _id: companyId, userId });
+        if (!companyToDelete) {
+            throw new Error("Company not found or permission denied.");
+        }
+
         await CompanyModel.findByIdAndDelete(companyId);
         revalidatePath('/companies');
     } catch (error: any) {
