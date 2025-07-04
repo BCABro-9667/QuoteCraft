@@ -161,7 +161,7 @@ export function CompanyList() {
           <div className="flex gap-2">
             <Button
               onClick={exportToCSV}
-              className="bg-green-600 text-primary-foreground hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+              variant="outline"
             >
               <FileDown className="mr-2 h-4 w-4" />
               Export
