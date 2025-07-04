@@ -116,10 +116,19 @@ export function CompanyList() {
   };
 
   const exportToCSV = () => {
-    const headers = 'Company Name,Email,Location,GSTIN\n';
+    const headers = 'Company Name,Email,Phone,Contact Person,Location,Address,GSTIN,Remarks\n';
     const rows = filteredCompanies
       .map(
-        (c) => `"${c.name}","${c.email || ''}","${c.location || ''}","${c.gstin || ''}"`
+        (c) => [
+          `"${(c.name || '').replace(/"/g, '""')}"`,
+          `"${(c.email || '').replace(/"/g, '""')}"`,
+          `"${(c.phone || '').replace(/"/g, '""')}"`,
+          `"${(c.contactPerson || '').replace(/"/g, '""')}"`,
+          `"${(c.location || '').replace(/"/g, '""')}"`,
+          `"${(c.address || '').replace(/"/g, '""')}"`,
+          `"${(c.gstin || '').replace(/"/g, '""')}"`,
+          `"${(c.remarks || '').replace(/"/g, '""')}"`
+        ].join(',')
       )
       .join('\n');
     const csvContent = headers + rows;
