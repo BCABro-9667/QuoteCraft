@@ -420,13 +420,13 @@ export function QuotationList() {
         let finalY = (doc as any).lastAutoTable.finalY;
 
         // --- Grand Total ---
-        finalY += 5;
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Grand Total', pageWidth - 14 - 40, finalY, { align: 'right' });
-        doc.setFont('helvetica', 'normal');
-        doc.text(formatNumberForPdf(quotation.grandTotal ?? 0), pageWidth - 14, finalY, { align: 'right' });
-        finalY += 5;
+        // finalY += 5;
+        // doc.setFontSize(10);
+        // doc.setFont('helvetica', 'bold');
+        // doc.text('Grand Total', pageWidth - 14 - 40, finalY, { align: 'right' });
+        // doc.setFont('helvetica', 'normal');
+        // doc.text(formatNumberForPdf(quotation.grandTotal ?? 0), pageWidth - 14, finalY, { align: 'right' });
+        // finalY += 5;
 
 
         // --- Terms & Conditions ---
