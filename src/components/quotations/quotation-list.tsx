@@ -519,7 +519,10 @@ export function QuotationList() {
                     />
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={exportToCSV}>
+                    <Button
+                        onClick={exportToCSV}
+                        className="bg-green-600 text-primary-foreground hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                    >
                         <DownloadIcon className="mr-2 h-4 w-4" />
                         Export
                     </Button>
