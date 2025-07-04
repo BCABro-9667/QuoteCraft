@@ -226,6 +226,13 @@ export function QuotationList() {
   };
 
   const handleDownloadPdf = async (quotation: Quotation) => {
+    const sanitize = (value: any, fallback: string = 'N/A'): string => {
+        if (value === null || value === undefined || value === '') {
+            return fallback;
+        }
+        return String(value);
+    };
+
     try {
         if (!quotation.company) {
             toast({
@@ -282,19 +289,19 @@ export function QuotationList() {
                 });
                 doc.setFontSize(16);
                 doc.setFont('helvetica', 'bold');
-                doc.text(userProfile.companyName || 'My Company', 14, 20);
+                doc.text(sanitize(userProfile.companyName, 'My Company'), 14, 20);
             }
         } else {
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text(userProfile.companyName || 'My Company', 14, 20);
+            doc.text(sanitize(userProfile.companyName, 'My Company'), 14, 20);
         }
 
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         const headerRightX = pageWidth - 14;
         
-        const companyAddressText = `Address: ${userProfile.address || ''}`;
+        const companyAddressText = `Address: ${sanitize(userProfile.address)}`;
         const companyAddressLines = doc.splitTextToSize(companyAddressText, 80);
         let rightHeaderY = 12;
         doc.text(companyAddressLines, headerRightX, rightHeaderY, { align: 'right' });
@@ -302,10 +309,10 @@ export function QuotationList() {
         
         doc.setFont('helvetica', 'bold');
         const contactInfo = [
-            userProfile.phone ? `Tel: ${userProfile.phone}` : '',
-            userProfile.email ? `Email: ${userProfile.email}`: '',
-            userProfile.website ? `URL: ${userProfile.website}`: '',
-            userProfile.gstin ? `GSTIN: ${userProfile.gstin}`: '',
+            userProfile.phone ? `Tel: ${sanitize(userProfile.phone)}` : '',
+            userProfile.email ? `Email: ${sanitize(userProfile.email)}`: '',
+            userProfile.website ? `URL: ${sanitize(userProfile.website)}`: '',
+            userProfile.gstin ? `GSTIN: ${sanitize(userProfile.gstin)}`: '',
         ].filter(Boolean);
         
         contactInfo.forEach(line => {
@@ -325,7 +332,7 @@ export function QuotationList() {
         doc.text('Ref. No.', headerRightX - 25, currentY, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(0,0,0);
-        doc.text(quotation.quotationNumber || 'N/A', headerRightX, currentY, { align: 'right' });
+        doc.text(sanitize(quotation.quotationNumber), headerRightX, currentY, { align: 'right' });
         
         currentY += 5;
         doc.setFont('helvetica', 'bold');
@@ -336,12 +343,12 @@ export function QuotationList() {
 
         // --- Client Info ---
         let clientY = currentY + 5;
-        const addClientInfo = (label: string, value: string | undefined | null) => {
+        const addClientInfo = (label: string, value: any) => {
             doc.setFont('helvetica', 'bold');
             doc.text(label, 14, clientY);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(orangeColor);
-            doc.text(String(value || 'N/A'), 48, clientY);
+            doc.text(sanitize(value), 48, clientY);
             doc.setTextColor(0);
             clientY += 6;
         }
@@ -373,10 +380,10 @@ export function QuotationList() {
 
         // --- Products Table ---
         const tableBody = (quotation.products || []).map(p => ([
-            String(p?.srNo ?? 'N/A'),
-            String(p?.name ?? ''), // This is a placeholder for didParseCell, which handles name and model
-            String(p?.hsn ?? 'N/A'),
-            `${String(p?.quantity ?? '0')} ${String(p?.quantityType ?? '')}`.trim(),
+            sanitize(p?.srNo, ''),
+            `${sanitize(p?.name, 'Unnamed Product')}\n(Model No: ${sanitize(p?.model, 'N/A')})`,
+            sanitize(p?.hsn),
+            `${sanitize(p?.quantity, '0')} ${sanitize(p?.quantityType, '')}`.trim(),
             formatNumberForPdf(p?.price ?? 0),
             formatNumberForPdf(p?.total ?? 0),
         ]));
@@ -393,10 +400,11 @@ export function QuotationList() {
             },
             bodyStyles: {
                 textColor: [0, 0, 0],
+                cellPadding: 2.5,
+                valign: 'middle'
             },
             styles: {
                 fontSize: 9,
-                cellPadding: 2.5,
                 valign: 'middle',
             },
             columnStyles: {
@@ -406,23 +414,6 @@ export function QuotationList() {
                 3: { halign: 'center' },
                 4: { halign: 'right' },
                 5: { halign: 'right' },
-            },
-            didParseCell: (data) => {
-                if (data.section === 'body' && data.column.dataKey === 1) { // Description column
-                    const product = quotation.products?.[data.row.index];
-                    if (product) {
-                        data.cell.text = []; // Clear original text
-                        
-                        const productName = String(product.name ?? 'N/A');
-                        const productModel = String(product.model ?? 'N/A');
-                        
-                        const nameStyle = { font: 'helvetica', fontStyle: 'normal' };
-                        data.cell.text.push({ content: productName, styles: nameStyle });
-
-                        const modelStyle = { font: 'helvetica', fontStyle: 'italic', fontSize: 8 };
-                        data.cell.text.push({ content: `(Model No: ${productModel})`, styles: modelStyle });
-                    }
-                }
             },
         });
 
@@ -434,7 +425,7 @@ export function QuotationList() {
         doc.setFont('helvetica', 'bold');
         doc.text('Grand Total', pageWidth - 14 - 40, finalY, { align: 'right' });
         doc.setFont('helvetica', 'normal');
-        doc.text(formatNumberForPdf(quotation.grandTotal || 0), pageWidth - 14, finalY, { align: 'right' });
+        doc.text(formatNumberForPdf(quotation.grandTotal ?? 0), pageWidth - 14, finalY, { align: 'right' });
         finalY += 5;
 
 
@@ -455,7 +446,7 @@ export function QuotationList() {
             finalY += 6;
             doc.setFontSize(9);
             
-            const terms = quotation.termsAndConditions.split('\n').map(line => {
+            const terms = sanitize(quotation.termsAndConditions).split('\n').map(line => {
                 const parts = line.split(':');
                 const key = (parts.shift() || '').trim();
                 const value = parts.join(':').trim();
@@ -469,9 +460,9 @@ export function QuotationList() {
                 }
                 if (term.key) {
                     doc.setFont('helvetica', 'normal');
-                    doc.text(`• ${term.key}`, 18, finalY);
+                    doc.text(`• ${sanitize(term.key)}`, 18, finalY);
                     doc.text(':', 50, finalY);
-                    doc.text(term.value || 'N/A', 55, finalY);
+                    doc.text(sanitize(term.value), 55, finalY);
                     finalY += 5;
                 }
             });
@@ -492,14 +483,14 @@ export function QuotationList() {
         finalY += 15;
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(245, 130, 32);
-        doc.text(`For ${(userProfile.companyName || 'My Company').toUpperCase()}`, 14, finalY);
+        doc.text(`For ${sanitize(userProfile.companyName, 'My Company').toUpperCase()}`, 14, finalY);
         doc.setTextColor(0);
 
         finalY += 20;
         doc.setFont('helvetica', 'normal');
         doc.text('Authorized signature', 14, finalY);
         
-        doc.save(`Quotation-${quotation.quotationNumber}.pdf`);
+        doc.save(`Quotation-${sanitize(quotation.quotationNumber)}.pdf`);
     } catch (error: any) {
         console.error("Failed to generate PDF:", error);
         toast({
