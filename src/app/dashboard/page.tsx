@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -23,6 +23,7 @@ import {
   CheckCircle,
   Clock,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { getCompanyCount } from '@/lib/actions/company.actions';
@@ -79,7 +80,7 @@ const actions = [
 ];
 
 
-export default function DashboardPage() {
+function DashboardPageContent() {
     const { user, loading: authLoading } = useAuth();
     const searchParams = useSearchParams();
     const [showAlert, setShowAlert] = useState(false);
@@ -130,7 +131,6 @@ export default function DashboardPage() {
     }, [user, authLoading, toast]);
     
   return (
-    <ProtectedRoute>
       <div className="flex flex-col gap-6 md:gap-8">
         {showAlert && user && (
             <Alert variant="success">
@@ -187,6 +187,16 @@ export default function DashboardPage() {
             </CardContent>
         </Card>
       </div>
+  );
+}
+
+
+export default function DashboardPage() {
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+        <DashboardPageContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }
