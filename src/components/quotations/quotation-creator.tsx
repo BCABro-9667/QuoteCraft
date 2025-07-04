@@ -414,7 +414,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                           <FormItem>
                               <FormLabel>Quotation Number</FormLabel>
                               <FormControl>
-                                  <Input {...field} readOnly={!isEditMode} />
+                                  <Input {...field} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
