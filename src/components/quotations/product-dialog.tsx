@@ -36,7 +36,7 @@ import { quantityTypes } from '@/types';
 import { analyzeProductImage } from '@/lib/actions';
 import { Loader2, Upload } from 'lucide-react';
 
-const hsnCodes = ['84678587', '84678586', '84678589', '84678581'] as const;
+const hsnCodes = ['85151100', '84289090', '84678990', '84798999', '63079090', '61161000'] as const;
 
 const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
