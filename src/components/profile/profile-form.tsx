@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import type { UserProfile } from '@/types';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { getProfile, updateProfile } from '@/lib/actions/profile.actions';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 
 const profileFormSchema = z.object({
@@ -35,13 +35,15 @@ const profileFormSchema = z.object({
   address: z.string().optional(),
   gstin: z.string().optional(),
   quotationPrefix: z.string().min(1, { message: 'Quotation prefix is required' }),
+  hsnCodes: z.array(z.string()).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-const defaultProfileValues = {
+const defaultProfileValues: ProfileFormValues = {
     companyName: '', logoUrl: '', email: '', website: '', phone: '',
     mobile: '', whatsapp: '', address: '', gstin: '', quotationPrefix: '',
+    hsnCodes: [],
 };
 
 export function ProfileForm() {
@@ -49,11 +51,17 @@ export function ProfileForm() {
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [newHsnCode, setNewHsnCode] = useState('');
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: defaultProfileValues,
     mode: 'onChange',
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "hsnCodes",
   });
 
   const logoUrl = form.watch('logoUrl');
@@ -65,7 +73,7 @@ export function ProfileForm() {
         try {
           const profileData = await getProfile();
           if (profileData) {
-            form.reset(profileData);
+            form.reset({ ...defaultProfileValues, ...profileData });
           }
         } catch (error: any) {
           console.error('Failed to fetch profile:', error);
@@ -108,7 +116,7 @@ export function ProfileForm() {
                         <Skeleton className="h-10 w-full" />
                     </div>
                 </div>
-                {[...Array(8)].map((_, i) => (
+                {[...Array(9)].map((_, i) => (
                     <div key={i} className="space-y-2">
                         <Skeleton className="h-4 w-24" />
                         <Skeleton className="h-10 w-full" />
@@ -271,6 +279,74 @@ export function ProfileForm() {
                     </FormItem>
                 )}
                 />
+            </div>
+
+            <div className="md:col-span-2 space-y-4 rounded-lg border p-4 bg-muted/20">
+                <div className="space-y-1">
+                    <h3 className="text-lg font-medium">HSN Codes</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Manage your list of frequently used HSN codes for quick access in quotations.
+                    </p>
+                </div>
+                
+                <div className="space-y-2">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="flex items-center gap-2 animate-in fade-in-0">
+                            <Input
+                                {...form.register(`hsnCodes.${index}` as const)}
+                                className="bg-background"
+                                readOnly
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0"
+                                onClick={() => remove(index)}
+                                disabled={isSubmitting}
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <span className="sr-only">Remove HSN Code</span>
+                            </Button>
+                        </div>
+                    ))}
+                    {fields.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">No HSN codes added yet.</p>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                    <Input
+                        placeholder="Enter new HSN code"
+                        value={newHsnCode}
+                        onChange={(e) => setNewHsnCode(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const code = newHsnCode.trim();
+                                if (code && !form.getValues().hsnCodes?.includes(code)) {
+                                    append(code, { shouldFocus: false });
+                                    setNewHsnCode('');
+                                }
+                            }
+                        }}
+                    />
+                    <Button
+                        type="button"
+                        className="shrink-0"
+                        onClick={() => {
+                            const code = newHsnCode.trim();
+                            if (code && !form.getValues().hsnCodes?.includes(code)) {
+                                append(code, { shouldFocus: false });
+                                setNewHsnCode('');
+                            }
+                        }}
+                        disabled={isSubmitting}
+                    >
+                        Add HSN
+                    </Button>
+                </div>
+                <FormMessage>{form.formState.errors.hsnCodes?.message}</FormMessage>
             </div>
         </div>
         <div className="flex justify-end gap-4">

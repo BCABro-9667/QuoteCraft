@@ -23,6 +23,7 @@ export interface UserProfile {
   address: string;
   gstin: string;
   quotationPrefix: string;
+  hsnCodes?: string[];
 }
 
 export const quantityTypes = ['Set', 'Nos', 'Piece', 'Pair', 'Kg', 'Meter'] as const;
