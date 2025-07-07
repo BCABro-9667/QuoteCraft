@@ -28,6 +28,7 @@ export async function updateProfile(profileData: Partial<UserProfile>) {
         await dbConnect();
         await UserProfileModel.findOneAndUpdate({ userId }, profileData, { upsert: true });
         revalidatePath('/profile');
+        revalidatePath('/quotations/new');
     } catch (error: any) {
         console.error('Database Error: Failed to update profile.', error);
         throw new Error(`Failed to update profile. ${error.message}`);
