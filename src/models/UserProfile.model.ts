@@ -13,7 +13,6 @@ const UserProfileSchema = new Schema<UserProfile>({
   address: { type: String },
   gstin: { type: String },
   quotationPrefix: { type: String, required: true },
-  hsnCodes: { type: [String], default: [] },
 });
 
 UserProfileSchema.virtual('id').get(function() { return this._id.toHexString(); });

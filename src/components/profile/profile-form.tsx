@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -18,12 +18,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import type { UserProfile } from '@/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { getProfile, updateProfile } from '@/lib/actions/profile.actions';
+import { getHsnCodes, addHsnCode, deleteHsnCode } from '@/lib/actions/hsn.actions';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 
+// HSN codes are now managed separately, so they are removed from this form's schema
 const profileFormSchema = z.object({
   companyName: z.string().min(1, { message: 'Company Name is required' }),
   logoUrl: z.string().url({ message: 'Please enter a valid URL' }).optional().or(z.literal('')),
@@ -35,7 +37,6 @@ const profileFormSchema = z.object({
   address: z.string().optional(),
   gstin: z.string().optional(),
   quotationPrefix: z.string().min(1, { message: 'Quotation prefix is required' }),
-  hsnCodes: z.array(z.string()).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -43,7 +44,6 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 const defaultProfileValues: ProfileFormValues = {
     companyName: '', logoUrl: '', email: '', website: '', phone: '',
     mobile: '', whatsapp: '', address: '', gstin: '', quotationPrefix: '',
-    hsnCodes: [],
 };
 
 export function ProfileForm() {
@@ -51,43 +51,80 @@ export function ProfileForm() {
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [newHsnCode, setNewHsnCode] = useState('');
   
+  // HSN Codes state and management
+  const [hsnCodes, setHsnCodes] = useState<string[]>([]);
+  const [newHsnCode, setNewHsnCode] = useState('');
+  const [isHsnLoading, startHsnTransition] = useTransition();
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: defaultProfileValues,
     mode: 'onChange',
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "hsnCodes",
-  });
-
   const logoUrl = form.watch('logoUrl');
 
   useEffect(() => {
     if (!authLoading && user) {
-      const fetchProfile = async () => {
+      const fetchInitialData = async () => {
         setIsLoading(true);
         try {
-          const profileData = await getProfile();
+          const [profileData, fetchedHsnCodes] = await Promise.all([
+            getProfile(),
+            getHsnCodes()
+          ]);
+
           if (profileData) {
             form.reset({ ...defaultProfileValues, ...profileData });
           }
+          setHsnCodes(fetchedHsnCodes);
+
         } catch (error: any) {
-          console.error('Failed to fetch profile:', error);
-          toast({ variant: 'destructive', title: 'Error Fetching Profile', description: error.message });
+          console.error('Failed to fetch profile data:', error);
+          toast({ variant: 'destructive', title: 'Error Fetching Data', description: error.message });
         } finally {
           setIsLoading(false);
         }
       };
-      fetchProfile();
+      fetchInitialData();
     } else if (!authLoading && !user) {
       setIsLoading(false);
     }
   }, [user, authLoading, form, toast]);
 
+
+  const handleAddHsn = () => {
+    const code = newHsnCode.trim();
+    if (!code) return;
+    if (hsnCodes.includes(code)) {
+        toast({ variant: 'destructive', title: 'Duplicate Code', description: 'This HSN code already exists.' });
+        return;
+    }
+
+    startHsnTransition(async () => {
+        const result = await addHsnCode(code);
+        if (result.success) {
+            setHsnCodes(prev => [...prev, code].sort());
+            setNewHsnCode('');
+            toast({ title: 'Success', description: 'HSN code added.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.message });
+        }
+    });
+  };
+
+  const handleDeleteHsn = (codeToDelete: string) => {
+    startHsnTransition(async () => {
+        const result = await deleteHsnCode(codeToDelete);
+        if (result.success) {
+            setHsnCodes(prev => prev.filter(c => c !== codeToDelete));
+            toast({ title: 'Success', description: 'HSN code removed.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: result.message });
+        }
+    });
+  };
 
   const onSubmit = async (data: ProfileFormValues) => {
     if (!user) {
@@ -290,10 +327,10 @@ export function ProfileForm() {
                 </div>
                 
                 <div className="space-y-2">
-                    {fields.map((field, index) => (
-                        <div key={field.id} className="flex items-center gap-2 animate-in fade-in-0">
+                    {hsnCodes.map((code) => (
+                        <div key={code} className="flex items-center gap-2 animate-in fade-in-0">
                             <Input
-                                {...form.register(`hsnCodes.${index}` as const)}
+                                value={code}
                                 className="bg-background"
                                 readOnly
                             />
@@ -302,15 +339,15 @@ export function ProfileForm() {
                                 variant="ghost"
                                 size="icon"
                                 className="shrink-0"
-                                onClick={() => remove(index)}
-                                disabled={isSubmitting}
+                                onClick={() => handleDeleteHsn(code)}
+                                disabled={isHsnLoading || isSubmitting}
                             >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                                 <span className="sr-only">Remove HSN Code</span>
                             </Button>
                         </div>
                     ))}
-                    {fields.length === 0 && (
+                    {hsnCodes.length === 0 && !isLoading && (
                       <p className="text-sm text-muted-foreground text-center py-4">No HSN codes added yet.</p>
                     )}
                 </div>
@@ -323,30 +360,21 @@ export function ProfileForm() {
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 e.preventDefault();
-                                const code = newHsnCode.trim();
-                                if (code && !form.getValues().hsnCodes?.includes(code)) {
-                                    append(code, { shouldFocus: false });
-                                    setNewHsnCode('');
-                                }
+                                handleAddHsn();
                             }
                         }}
+                        disabled={isHsnLoading || isSubmitting}
                     />
                     <Button
                         type="button"
                         className="shrink-0"
-                        onClick={() => {
-                            const code = newHsnCode.trim();
-                            if (code && !form.getValues().hsnCodes?.includes(code)) {
-                                append(code, { shouldFocus: false });
-                                setNewHsnCode('');
-                            }
-                        }}
-                        disabled={isSubmitting}
+                        onClick={handleAddHsn}
+                        disabled={isHsnLoading || isSubmitting || !newHsnCode.trim()}
                     >
+                        {isHsnLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Add HSN
                     </Button>
                 </div>
-                <FormMessage>{form.formState.errors.hsnCodes?.message}</FormMessage>
             </div>
         </div>
         <div className="flex justify-end gap-4">

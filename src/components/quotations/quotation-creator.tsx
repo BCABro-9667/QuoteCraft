@@ -70,6 +70,7 @@ import { ProductDialog } from './product-dialog';
 import { getCompanies } from '@/lib/actions/company.actions';
 import { createQuotation, getQuotation, updateQuotation, getQuotationCountForNumber } from '@/lib/actions/quotation.actions';
 import { getProfile } from '@/lib/actions/profile.actions';
+import { getHsnCodes } from '@/lib/actions/hsn.actions';
 import { Skeleton } from '../ui/skeleton';
 
 const productSchema = z.object({
@@ -166,7 +167,7 @@ interface SortableProductRowProps {
 
 export function QuotationCreator({ quotationId }: { quotationId?: string }) {
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [hsnCodes, setHsnCodes] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isProductDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProductIndex, setEditingProductIndex] = useState<number | null>(null);
@@ -231,13 +232,14 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [fetchedCompanies, fetchedProfile] = await Promise.all([
+                const [fetchedCompanies, fetchedProfile, fetchedHsnCodes] = await Promise.all([
                     getCompanies(),
                     getProfile(),
+                    getHsnCodes(),
                 ]);
                 
                 setCompanies(fetchedCompanies);
-                setUserProfile(fetchedProfile);
+                setHsnCodes(fetchedHsnCodes);
 
                 const createdByName = user ? `${user.firstName} ${user.lastName}`.trim() : 'Sales Team';
 
@@ -414,7 +416,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                           <FormItem>
                               <FormLabel>Quotation Number</FormLabel>
                               <FormControl>
-                                  <Input {...field} readOnly />
+                                  <Input {...field} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -625,7 +627,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
           }} 
           onSaveProduct={handleSaveProduct}
           productToEdit={productToEdit}
-          hsnCodes={userProfile?.hsnCodes || []}
+          hsnCodes={hsnCodes}
       />
     </>
   );
