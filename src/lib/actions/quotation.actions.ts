@@ -14,7 +14,7 @@ export async function getQuotations(): Promise<Quotation[]> {
         const userId = await getAuthenticatedUserId();
         if (!userId) return [];
         await dbConnect();
-        const quotations = await QuotationModel.find({ userId }).sort({ date: -1 });
+        const quotations = await QuotationModel.find({ userId }).sort({ quotationNumber: -1 });
         
         const plainQuotations = plain(quotations);
 
