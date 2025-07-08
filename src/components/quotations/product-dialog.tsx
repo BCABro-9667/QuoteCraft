@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -43,7 +44,7 @@ const hsnCodes = ['85151100', '84289090', '84678990', '84798999', '63079090', '6
 >>>>>>> dcbd568 (In profile create h hsn creation where I can create my hsn codes and the)
 const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
-  model: z.string().min(1, "Model number is required"),
+  model: z.string().optional(),
   hsn: z.string().min(1, "HSN code is required"),
   quantity: z.coerce.number().min(0.1, "Quantity must be positive"),
   quantityType: z.enum(quantityTypes),
@@ -107,7 +108,7 @@ export function ProductDialog({ isOpen, onClose, onSaveProduct, productToEdit, h
         toast({ variant: 'destructive', title: 'AI Analysis Failed', description: result.error });
       } else {
         form.setValue('name', result.productName, { shouldValidate: true });
-        form.setValue('model', result.modelNumber, { shouldValidate: true });
+        form.setValue('model', result.modelNumber || '', { shouldValidate: true });
         form.setValue('hsn', result.hsn, { shouldValidate: true });
         form.setValue('quantity', result.quantity, { shouldValidate: true });
         form.setValue('price', result.price, { shouldValidate: true });
