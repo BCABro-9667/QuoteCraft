@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -23,7 +24,7 @@ export type ProductImageAnalyzerInput = z.infer<typeof ProductImageAnalyzerInput
 
 const ProductImageAnalyzerOutputSchema = z.object({
   productName: z.string().describe('The name of the product.'),
-  modelNumber: z.string().describe('The model number of the product.'),
+  modelNumber: z.string().optional().describe('The model number of the product.'),
   hsn: z.string().describe('The HSN code of the product.'),
   quantity: z.number().describe('The quantity of the product.'),
   price: z.number().describe('The price of the product.'),

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -78,7 +79,7 @@ const productSchema = z.object({
     _id: z.string().optional(),
     srNo: z.number(),
     name: z.string(),
-    model: z.string(),
+    model: z.string().optional(),
     hsn: z.string(),
     quantity: z.number(),
     quantityType: z.enum(quantityTypes),

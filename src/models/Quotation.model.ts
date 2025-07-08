@@ -1,3 +1,4 @@
+
 import mongoose, { Schema, Document, models, Model } from 'mongoose';
 import type { Quotation, Product } from '@/types';
 
@@ -10,7 +11,7 @@ const ProductSchema = new Schema<Product>({
     // `id` will be a virtual, `_id` is created automatically by mongoose
     srNo: { type: Number, required: true },
     name: { type: String, required: true },
-    model: { type: String, required: true },
+    model: { type: String },
     hsn: { type: String, required: true },
     quantity: { type: Number, required: true },
     quantityType: { type: String, required: true },

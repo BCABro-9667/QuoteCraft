@@ -1,3 +1,4 @@
+
 export interface Company {
   id: string;
   name: string;
@@ -32,7 +33,7 @@ export interface Product {
   id: string;
   srNo: number;
   name: string;
-  model: string;
+  model?: string;
   hsn: string;
   quantity: number;
   quantityType: QuantityType;
