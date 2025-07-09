@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -225,6 +226,11 @@ export function QuotationList() {
             return fallback;
         }
         return String(value);
+    };
+
+    const sanitizeFilename = (value: any): string => {
+      const stringValue = sanitize(value, '');
+      return stringValue.replace(/[/\\?%*:|"<>]/g, '-');
     };
 
     try {
@@ -500,7 +506,8 @@ export function QuotationList() {
         doc.setFont('helvetica', 'normal');
         doc.text('Authorized signature', 14, finalY);
         
-        doc.save(`Quotation-${sanitize(quotation.quotationNumber)}.pdf`);
+        const filename = `${sanitizeFilename(quotation.quotationNumber)} (${sanitizeFilename(quotation.company.name)}).pdf`;
+        doc.save(filename);
     } catch (error: any) {
         console.error("Failed to generate PDF:", error);
         toast({
