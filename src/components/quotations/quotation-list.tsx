@@ -359,8 +359,6 @@ export function QuotationList() {
         addClientInfo('Contact No.:', quotation.company.phone);
         addClientInfo('Email id:', quotation.company.email);
         addClientInfo('GSTIN:', quotation.company.gstin);
-        addClientInfo('Reference Person:', quotation.referencedBy);
-        addClientInfo('Created By:', quotation.createdBy);
         currentY = clientY;
 
         // --- Subject ---
@@ -484,8 +482,21 @@ export function QuotationList() {
         doc.text('Thank You.', 14, finalY);
         finalY += 5;
         doc.text('Regards', 14, finalY);
-
-        finalY += 15;
+        
+        finalY += 8;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        const addClosingInfo = (label: string, value: any) => {
+             if (sanitize(value, '').trim()) {
+                const closingText = `${label}: ${sanitize(value)}`;
+                doc.text(closingText, 14, finalY);
+                finalY += 5;
+             }
+        }
+        addClosingInfo('Reference Person', quotation.referencedBy);
+        addClosingInfo('Created By', quotation.createdBy);
+        
+        finalY += 10;
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(245, 130, 32);
         doc.text(`For ${sanitize(userProfile.companyName, 'My Company').toUpperCase()}`, 14, finalY);
@@ -815,5 +826,7 @@ export function QuotationList() {
     </Card>
   );
 }
+
+    
 
     
