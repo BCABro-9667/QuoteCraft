@@ -1,9 +1,10 @@
-
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, syncQuotations, syncUserProfile } from '@/lib/local-db';
 import {
   Card,
   CardContent,
@@ -52,7 +53,7 @@ import {
   } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import type { Quotation, UserProfile, QuotationStatus, Company, Product } from '@/types';
+import type { Quotation, UserProfile, QuotationStatus } from '@/types';
 import { quotationStatuses } from '@/types';
 import {
   PlusCircle,
@@ -72,8 +73,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency, formatNumberForPdf, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { format, isSameDay } from 'date-fns';
-import { getQuotations, deleteQuotation, updateQuotationProgress } from '@/lib/actions/quotation.actions';
-import { getProfile } from '@/lib/actions/profile.actions';
+import { deleteQuotation, updateQuotationProgress } from '@/lib/actions/quotation.actions';
 
 const months = [
     "January", "February", "March", "April", "May", "June", 
@@ -81,9 +81,14 @@ const months = [
 ];
 
 export function QuotationList() {
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+  
+  const [isSyncing, setIsSyncing] = useState(true);
+  const localQuotations = useLiveQuery(() => db.quotations.orderBy('quotationNumber').reverse().toArray(), []);
+  const userProfile = useLiveQuery(() => db.userProfile.toCollection().first(), []);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -92,42 +97,32 @@ export function QuotationList() {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const router = useRouter();
-  const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
-
 
   useEffect(() => {
     if (!authLoading && user) {
-      const fetchQuotations = async () => {
-        setIsLoading(true);
-        try {
-          const [fetchedQuotations, fetchedProfile] = await Promise.all([
-            getQuotations(),
-            getProfile()
-          ]);
-          setQuotations(fetchedQuotations);
-          setUserProfile(fetchedProfile);
-        } catch (error: any) {
-          console.error("Failed to fetch quotations:", error);
-          toast({ variant: 'destructive', title: 'Error Fetching Data', description: error.message });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchQuotations();
+      setIsSyncing(true);
+      Promise.all([syncQuotations(), syncUserProfile()])
+        .catch(error => {
+          console.error("Failed to sync data:", error);
+          toast({ variant: 'destructive', title: 'Error Syncing Data', description: error.message });
+        })
+        .finally(() => {
+          setIsSyncing(false);
+        });
     } else if (!authLoading && !user) {
-      setIsLoading(false);
+      setIsSyncing(false);
     }
   }, [user, authLoading, toast]);
 
 
   const uniqueLocations = useMemo(() => {
+    const quotations = localQuotations || [];
     const locations = new Set(quotations.map(q => q.company?.location).filter(Boolean));
     return Array.from(locations as string[]);
-  }, [quotations]);
+  }, [localQuotations]);
 
   const uniqueCompanies = useMemo(() => {
+    const quotations = localQuotations || [];
     const companyMap = new Map<string, { id: string; name: string }>();
     quotations.forEach(q => {
       if (q.company && !companyMap.has(q.company.id)) {
@@ -135,9 +130,10 @@ export function QuotationList() {
       }
     });
     return Array.from(companyMap.values());
-  }, [quotations]);
+  }, [localQuotations]);
 
   const filteredQuotations = useMemo(() => {
+    const quotations = localQuotations || [];
     return quotations.filter(q => {
       const lowercasedTerm = searchTerm.toLowerCase();
       const searchMatch =
@@ -153,9 +149,10 @@ export function QuotationList() {
 
       return searchMatch && monthMatch && locationMatch && companyMatch && dateMatch;
     });
-  }, [quotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
+  }, [localQuotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
   
   const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
+  const totalQuotations = localQuotations?.length ?? 0;
 
   const paginatedQuotations = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -174,8 +171,8 @@ export function QuotationList() {
   const handleDelete = async (quotationId: string) => {
     try {
         await deleteQuotation(quotationId);
+        await db.quotations.delete(quotationId);
         toast({ title: "Success", description: "Quotation deleted successfully." });
-        setQuotations(prev => prev.filter(q => q.id !== quotationId));
     } catch (error: any) {
         toast({ variant: 'destructive', title: "Error Deleting Quotation", description: error.message });
     }
@@ -184,13 +181,10 @@ export function QuotationList() {
   const handleProgressChange = async (quotationId: string, newProgress: QuotationStatus) => {
     try {
         await updateQuotationProgress(quotationId, newProgress);
-        // Optimistic update
-        setQuotations(prev => prev.map(q => q.id === quotationId ? { ...q, progress: newProgress } : q));
+        await db.quotations.update(quotationId, { progress: newProgress });
         toast({ title: "Status Updated", description: "Quotation progress has been updated." });
     } catch (error: any) {
         toast({ variant: 'destructive', title: "Error Updating Status", description: error.message });
-        // Revert optimistic update on error by refetching, though not ideal.
-        // A better approach would be to store the old state and revert.
     }
   };
 
@@ -516,6 +510,8 @@ export function QuotationList() {
         });
     }
   };
+  
+  const isLoading = localQuotations === undefined || (isSyncing && localQuotations?.length === 0);
 
   return (
     <Card>
@@ -708,7 +704,7 @@ export function QuotationList() {
         {totalPages > 0 && (
           <div className="flex items-center justify-end space-x-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
-                {filteredQuotations.length} of {quotations.length} row(s) found.
+                {filteredQuotations.length} of {totalQuotations} row(s) found.
             </div>
             <div className="flex items-center space-x-2">
                 <p className="text-sm font-medium">Rows per page</p>
@@ -826,7 +822,3 @@ export function QuotationList() {
     </Card>
   );
 }
-
-    
-
-    
