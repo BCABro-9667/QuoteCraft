@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db, syncCompanies } from '@/lib/local-db';
 import {
   Table,
   TableHeader,
@@ -51,43 +53,41 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getCompanies, deleteCompany } from '@/lib/actions/company.actions';
+import { deleteCompany } from '@/lib/actions/company.actions';
 import { useToast } from '@/hooks/use-toast';
 
 export function CompanyList() {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const [isSyncing, setIsSyncing] = useState(true);
+  const localCompanies = useLiveQuery(() => db.companies.orderBy('name').toArray(), []);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!authLoading && user) {
-      const fetchCompanies = async () => {
-        setIsLoading(true);
-        try {
-          const fetchedCompanies = await getCompanies();
-          setCompanies(fetchedCompanies);
-        } catch (error: any) {
-          console.error("Failed to fetch companies:", error);
-          toast({ variant: 'destructive', title: 'Error Fetching Companies', description: error.message });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchCompanies();
+      setIsSyncing(true);
+      syncCompanies()
+        .catch(error => {
+          console.error("Failed to sync companies:", error);
+          toast({ variant: 'destructive', title: 'Error Syncing Data', description: error.message });
+        })
+        .finally(() => {
+          setIsSyncing(false);
+        });
     } else if (!authLoading && !user) {
-      // Not logged in, stop loading. ProtectedRoute will redirect.
-      setIsLoading(false);
+      setIsSyncing(false);
     }
   }, [user, authLoading, toast]);
 
 
   const filteredCompanies = useMemo(() => {
+    const companies = localCompanies || [];
     return companies.filter(
       (company) =>
         company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,9 +95,10 @@ export function CompanyList() {
         (company.location && company.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (company.gstin && company.gstin.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [companies, searchTerm]);
+  }, [localCompanies, searchTerm]);
 
   const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
+  const totalCompanies = localCompanies?.length ?? 0;
 
   const paginatedCompanies = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -107,9 +108,8 @@ export function CompanyList() {
   const handleDelete = async (companyId: string) => {
     try {
         await deleteCompany(companyId);
+        await db.companies.delete(companyId);
         toast({ title: 'Success', description: 'Company deleted successfully.' });
-        // Refetch after delete by re-triggering the useEffect
-        setCompanies(prev => prev.filter(c => c.id !== companyId));
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error Deleting Company', description: error.message });
     }
@@ -144,6 +144,8 @@ export function CompanyList() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const isLoading = localCompanies === undefined || (isSyncing && localCompanies?.length === 0);
   
   return (
     <Card>
@@ -259,7 +261,7 @@ export function CompanyList() {
         {totalPages > 0 && (
           <div className="flex items-center justify-end space-x-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
-              {filteredCompanies.length} of {companies.length} row(s) found.
+              {filteredCompanies.length} of {totalCompanies} row(s) found.
             </div>
             <div className="flex items-center space-x-2">
               <p className="text-sm font-medium">Rows per page</p>
