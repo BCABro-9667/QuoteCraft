@@ -344,18 +344,23 @@ export function QuotationList() {
         // --- Client Info ---
         let clientY = currentY + 5;
         const addClientInfo = (label: string, value: any) => {
-            doc.setFont('helvetica', 'bold');
-            doc.text(label, 14, clientY);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(orangeColor);
-            doc.text(sanitize(value), 48, clientY);
-            doc.setTextColor(0);
-            clientY += 6;
+            if (sanitize(value, '').trim()) {
+                doc.setFont('helvetica', 'bold');
+                doc.text(label, 14, clientY);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(orangeColor);
+                doc.text(sanitize(value), 48, clientY);
+                doc.setTextColor(0);
+                clientY += 6;
+            }
         }
         addClientInfo('Company Name:', quotation.company.name);
         addClientInfo('Contact Person:', quotation.company.contactPerson);
         addClientInfo('Contact No.:', quotation.company.phone);
         addClientInfo('Email id:', quotation.company.email);
+        addClientInfo('GSTIN:', quotation.company.gstin);
+        addClientInfo('Reference Person:', quotation.referencedBy);
+        addClientInfo('Created By:', quotation.createdBy);
         currentY = clientY;
 
         // --- Subject ---
