@@ -71,7 +71,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
-import { formatCurrency, formatNumberForPdf, cn } from '@/lib/utils';
+import { formatCurrency, formatNumberForPdf, cn, sanitizeFilename } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { format, isSameDay } from 'date-fns';
 import { deleteQuotation, updateQuotationProgress } from '@/lib/actions/quotation.actions';
@@ -87,7 +87,7 @@ export function QuotationList() {
   const { user, loading: authLoading } = useAuth();
   
   const [isSyncing, setIsSyncing] = useState(true);
-  const localQuotations = useLiveQuery(() => db.quotations.ootationNumber').reverse().toArray(), []);
+  const localQuotations = useLiveQuery(() => db.quotations.orderBy('quotationNumber').reverse().toArray(), []);
   const userProfile = useLiveQuery(() => db.userProfile.toCollection().first(), []);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -226,11 +226,6 @@ export function QuotationList() {
             return fallback;
         }
         return String(value);
-    };
-
-    const sanitizeFilename = (value: any): string => {
-      const stringValue = sanitize(value, '');
-      return stringValue.replace(/[/\\?%*:|"<>]/g, '-');
     };
 
     try {
@@ -418,18 +413,31 @@ export function QuotationList() {
                 4: { halign: 'right' },
                 5: { halign: 'right' },
             },
+            didDrawPage: (data) => {
+                // Add footer on each page
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                const pageNumText = `Page ${doc.internal.pages.length - 1}`;
+                doc.text(pageNumText, pageWidth / 2, pageHeight - 10, { align: 'center'});
+            }
         });
 
         let finalY = (doc as any).lastAutoTable.finalY;
 
         // --- Grand Total ---
-        // finalY += 5;
-        // doc.setFontSize(10);
-        // doc.setFont('helvetica', 'bold');
-        // doc.text('Grand Total', pageWidth - 14 - 40, finalY, { align: 'right' });
-        // doc.setFont('helvetica', 'normal');
-        // doc.text(formatNumberForPdf(quotation.grandTotal ?? 0), pageWidth - 14, finalY, { align: 'right' });
-        // finalY += 5;
+        const grandTotalY = finalY + 8;
+        if (grandTotalY > pageHeight - 30) {
+            doc.addPage();
+            finalY = 20;
+        } else {
+            finalY = grandTotalY;
+        }
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Grand Total', pageWidth - 14 - 40, finalY, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.text(formatNumberForPdf(quotation.grandTotal ?? 0), pageWidth - 14, finalY, { align: 'right' });
+        finalY += 5;
 
 
         // --- Terms & Conditions ---
@@ -483,7 +491,13 @@ export function QuotationList() {
         finalY += 5;
         doc.text('Regards', 14, finalY);
         
-        finalY += 8;
+        finalY += 15;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(245, 130, 32);
+        doc.text(`For ${sanitize(userProfile.companyName, 'My Company').toUpperCase()}`, 14, finalY);
+        doc.setTextColor(0);
+
+        finalY += 10;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         const addClosingInfo = (label: string, value: any) => {
@@ -497,12 +511,6 @@ export function QuotationList() {
         addClosingInfo('Created By', quotation.createdBy);
         
         finalY += 10;
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(245, 130, 32);
-        doc.text(`For ${sanitize(userProfile.companyName, 'My Company').toUpperCase()}`, 14, finalY);
-        doc.setTextColor(0);
-
-        finalY += 20;
         doc.setFont('helvetica', 'normal');
         doc.text('Authorized signature', 14, finalY);
         
