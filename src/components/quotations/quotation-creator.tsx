@@ -414,7 +414,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                           <FormItem>
                               <FormLabel>Quotation Number</FormLabel>
                               <FormControl>
-                                  <Input {...field} />
+                                  <Input {...field} readOnly />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -625,6 +625,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
           }} 
           onSaveProduct={handleSaveProduct}
           productToEdit={productToEdit}
+          hsnCodes={userProfile?.hsnCodes || []}
       />
     </>
   );

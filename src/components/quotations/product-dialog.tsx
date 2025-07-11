@@ -36,12 +36,15 @@ import { quantityTypes } from '@/types';
 import { analyzeProductImage } from '@/lib/actions';
 import { Loader2, Upload } from 'lucide-react';
 
+<<<<<<< HEAD
 const hsnCodes = ['85151100', '84289090', '84678990', '84798999', '63079090', '61161000'] as const;
 
+=======
+>>>>>>> dcbd568 (In profile create h hsn creation where I can create my hsn codes and the)
 const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   model: z.string().min(1, "Model number is required"),
-  hsn: z.enum(hsnCodes, { required_error: "HSN code is required" }),
+  hsn: z.string().min(1, "HSN code is required"),
   quantity: z.coerce.number().min(0.1, "Quantity must be positive"),
   quantityType: z.enum(quantityTypes),
   price: z.coerce.number().min(0, "Price cannot be negative"),
@@ -54,13 +57,14 @@ interface ProductDialogProps {
   onClose: () => void;
   onSaveProduct: (product: Omit<Product, 'id' | 'srNo' | 'total'>) => void;
   productToEdit?: Product;
+  hsnCodes: string[];
 }
 
 const defaultValues = {
   name: '', model: '', hsn: undefined, quantity: 1, quantityType: 'Nos' as QuantityType, price: 0,
 };
 
-export function ProductDialog({ isOpen, onClose, onSaveProduct, productToEdit }: ProductDialogProps) {
+export function ProductDialog({ isOpen, onClose, onSaveProduct, productToEdit, hsnCodes }: ProductDialogProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -104,7 +108,7 @@ export function ProductDialog({ isOpen, onClose, onSaveProduct, productToEdit }:
       } else {
         form.setValue('name', result.productName, { shouldValidate: true });
         form.setValue('model', result.modelNumber, { shouldValidate: true });
-        form.setValue('hsn', result.hsn as any, { shouldValidate: true });
+        form.setValue('hsn', result.hsn, { shouldValidate: true });
         form.setValue('quantity', result.quantity, { shouldValidate: true });
         form.setValue('price', result.price, { shouldValidate: true });
         toast({ title: 'AI Analysis Complete', description: 'Product details have been populated.' });
@@ -182,11 +186,17 @@ export function ProductDialog({ isOpen, onClose, onSaveProduct, productToEdit }:
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {hsnCodes.map((code) => (
-                            <SelectItem key={code} value={code}>
-                              {code}
+                          {hsnCodes.length > 0 ? (
+                            hsnCodes.map((code) => (
+                              <SelectItem key={code} value={code}>
+                                {code}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-codes" disabled>
+                              No HSN codes configured in profile
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
