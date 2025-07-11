@@ -87,7 +87,7 @@ export function QuotationList() {
   const { user, loading: authLoading } = useAuth();
   
   const [isSyncing, setIsSyncing] = useState(true);
-  const localQuotations = useLiveQuery(() => db.quotations.orderBy('quotationNumber').reverse().toArray(), []);
+  const localQuotations = useLiveQuery(() => db.quotations.ootationNumber').reverse().toArray(), []);
   const userProfile = useLiveQuery(() => db.userProfile.toCollection().first(), []);
 
   const [searchTerm, setSearchTerm] = useState('');
