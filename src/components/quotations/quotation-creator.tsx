@@ -348,19 +348,6 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
     }
   };
   
-  if (isLoading) {
-    return (
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Skeleton className="lg:col-span-1 h-48" />
-                <Skeleton className="lg:col-span-2 h-48" />
-            </div>
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-40 w-full" />
-        </div>
-    )
-  }
-
   return (
     <>
       <Form {...form}>
@@ -371,32 +358,36 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                   <CardTitle>Client Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                  <FormField
-                      control={form.control}
-                      name="companyId"
-                      render={({ field }) => (
-                          <FormItem>
-                              <Select onValueChange={handleCompanyChange} value={field.value}>
-                                  <FormControl>
-                                  <SelectTrigger>
-                                      <SelectValue placeholder="Select a company" />
-                                  </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                  {companies.map((company) => (
-                                      <SelectItem key={company.id} value={company.id}>
-                                      {company.name}
-                                      </SelectItem>
-                                  ))}
-                                  </SelectContent>
-                              </Select>
-                              <FormMessage />
-                          </FormItem>
-                      )}
-                  />
+                  {isLoading ? (
+                     <Skeleton className="h-10 w-full" />
+                  ) : (
+                    <FormField
+                        control={form.control}
+                        name="companyId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <Select onValueChange={handleCompanyChange} value={field.value} disabled={isLoading}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a company" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {companies.map((company) => (
+                                        <SelectItem key={company.id} value={company.id}>
+                                        {company.name}
+                                        </SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                  )}
 
-                  {selectedCompany && (
-                  <div className="text-sm text-muted-foreground space-y-2 border p-3 rounded-md">
+                  {selectedCompany && !isLoading && (
+                  <div className="text-sm text-muted-foreground space-y-2 border p-3 rounded-md animate-in fade-in-0">
                       <p><strong>Address:</strong> {selectedCompany.address}</p>
                       <p><strong>Email:</strong> {selectedCompany.email}</p>
                       <p><strong>Phone:</strong> {selectedCompany.phone}</p>
@@ -410,57 +401,61 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                   <CardTitle>Quotation Details</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
-                  <FormField
-                      control={form.control}
-                      name="quotationNumber"
-                      render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Quotation Number</FormLabel>
-                              <FormControl>
-                                  <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                          </FormItem>
-                      )}
-                  />
-                  <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                          <FormItem className="flex flex-col pt-2">
-                              <FormLabel>Quotation Date</FormLabel>
-                              <Popover>
-                                  <PopoverTrigger asChild>
-                                  <FormControl>
-                                      <Button
-                                      variant={"outline"}
-                                      className={cn(
-                                          "w-full pl-3 text-left font-normal",
-                                          !field.value && "text-muted-foreground"
-                                      )}
-                                      >
-                                      {field.value ? (
-                                          format(new Date(field.value), "PPP")
-                                      ) : (
-                                          <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                  </FormControl>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                      mode="single"
-                                      selected={field.value ? new Date(field.value) : undefined}
-                                      onSelect={(date) => field.onChange(date?.toLocaleDateString('en-CA'))}
-                                      initialFocus
-                                  />
-                                  </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                          </FormItem>
-                      )}
-                  />
+                <FormItem>
+                    <FormLabel>Quotation Number</FormLabel>
+                    {isLoading ? <Skeleton className="h-10 w-full" /> : (
+                        <FormField
+                            control={form.control}
+                            name="quotationNumber"
+                            render={({ field }) => (
+                                <FormControl>
+                                    <Input {...field} />
+                                </FormControl>
+                            )}
+                        />
+                    )}
+                    <FormMessage />
+                </FormItem>
+                <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                            <FormLabel>Quotation Date</FormLabel>
+                            {isLoading ? <Skeleton className="h-10 w-full" /> : (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(new Date(field.value), "PPP")
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value ? new Date(field.value) : undefined}
+                                        onSelect={(date) => field.onChange(date?.toLocaleDateString('en-CA'))}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                            )}
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
               </CardContent>
               </Card>
           </div>
@@ -472,7 +467,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                       <CardTitle>Products</CardTitle>
                       <CardDescription>Add products to the quotation.</CardDescription>
                   </div>
-                  <Button type="button" onClick={handleAddProductClick} disabled={isSubmitting}>
+                  <Button type="button" onClick={handleAddProductClick} disabled={isSubmitting || isLoading}>
                   <PlusCircle className="mr-2 h-4 w-4" /> Add Product
                   </Button>
               </div>
@@ -543,7 +538,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                       render={({ field }) => (
                           <FormItem>
                               <FormControl>
-                                  <Textarea {...field} rows={6} placeholder="Enter terms and conditions..." />
+                                  <Textarea {...field} rows={6} placeholder="Enter terms and conditions..." disabled={isLoading} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -564,7 +559,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                           <FormItem>
                               <FormLabel>Referenced By</FormLabel>
                               <FormControl>
-                                  <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} />
+                                  <Input placeholder="e.g. Mr. Fiyaz Ahmed" {...field} disabled={isLoading} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -577,7 +572,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                           <FormItem>
                               <FormLabel>Created By</FormLabel>
                               <FormControl>
-                                  <Input placeholder="e.g. Sales Team" {...field} />
+                                  <Input placeholder="e.g. Sales Team" {...field} disabled={isLoading} />
                               </FormControl>
                               <FormMessage />
                           </FormItem>
@@ -589,7 +584,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
                       render={({ field }) => (
                           <FormItem>
                               <FormLabel>Progress</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
+                              <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
                                   <FormControl>
                                       <SelectTrigger>
                                           <SelectValue placeholder="Select status" />
@@ -612,7 +607,7 @@ export function QuotationCreator({ quotationId }: { quotationId?: string }) {
 
           <div className="flex justify-end gap-4">
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button type="submit" disabled={isSubmitting || isLoading}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isEditMode ? 'Update Quotation' : 'Create Quotation'}
               </Button>
