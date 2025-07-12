@@ -37,11 +37,6 @@ import { quantityTypes } from '@/types';
 import { analyzeProductImage } from '@/lib/actions';
 import { Loader2, Upload } from 'lucide-react';
 
-<<<<<<< HEAD
-const hsnCodes = ['85151100', '84289090', '84678990', '84798999', '63079090', '61161000'] as const;
-
-=======
->>>>>>> dcbd568 (In profile create h hsn creation where I can create my hsn codes and the)
 const productSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   model: z.string().optional(),
