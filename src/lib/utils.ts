@@ -26,3 +26,8 @@ export function generateQuotationNumber(prefix: string, lastQuotationId: number)
     const newId = String(lastQuotationId + 1).padStart(2, '0');
     return `${prefix}/${financialYear}/${newId}`;
 }
+
+
+export function sanitizeFilename(filename: string): string {
+  return filename.replace(/[\/\\?%*:|"<>]/g, '-');
+}

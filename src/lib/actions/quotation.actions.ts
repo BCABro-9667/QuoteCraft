@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from "next/cache";
@@ -6,6 +7,8 @@ import QuotationModel from "@/models/Quotation.model";
 import CompanyModel from "@/models/Company.model";
 import type { Quotation, QuotationStatus } from "@/types";
 import { getAuthenticatedUserId } from "../session";
+import { getProfile } from "./profile.actions";
+import { generateQuotationNumber } from "../utils";
 
 const plain = (obj: any) => JSON.parse(JSON.stringify(obj));
 
@@ -88,6 +91,48 @@ export async function deleteQuotation(quotationId: string) {
     } catch (error: any) {
         console.error(`Database Error: Failed to delete quotation ${quotationId}.`, error);
         throw new Error(`Failed to delete quotation. ${error.message}`);
+    }
+}
+
+export async function duplicateQuotation(quotationId: string) {
+    const userId = await getAuthenticatedUserId();
+    if (!userId) throw new Error("Authentication required.");
+
+    try {
+        await dbConnect();
+        const originalQuotation = await QuotationModel.findById(quotationId);
+        if (!originalQuotation) {
+            throw new Error("Original quotation not found.");
+        }
+
+        const profile = await getProfile();
+        if (!profile) {
+            throw new Error("User profile not found, cannot generate new quotation number.");
+        }
+        
+        const quotationCount = await getQuotationCountForNumber();
+        const newQuotationNumber = generateQuotationNumber(profile.quotationPrefix, quotationCount);
+
+        const duplicatedQuotation = plain(originalQuotation);
+        delete duplicatedQuotation._id;
+        delete duplicatedQuotation.id;
+
+        const newQuotationData = {
+            ...duplicatedQuotation,
+            userId,
+            quotationNumber: newQuotationNumber,
+            date: new Date().toLocaleDateString('en-CA'),
+            progress: 'Pending',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        await QuotationModel.create(newQuotationData);
+        revalidatePath('/quotations');
+
+    } catch (error: any) {
+        console.error('Database Error: Failed to duplicate quotation.', error);
+        throw new Error(`Failed to duplicate quotation. ${error.message}`);
     }
 }
 

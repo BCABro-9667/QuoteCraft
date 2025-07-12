@@ -67,6 +67,7 @@ import {
   Calendar as CalendarIcon,
   FilterX,
   Loader2,
+  Copy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -74,7 +75,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency, formatNumberForPdf, cn, sanitizeFilename } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { format, isSameDay } from 'date-fns';
-import { deleteQuotation, updateQuotationProgress } from '@/lib/actions/quotation.actions';
+import { deleteQuotation, updateQuotationProgress, duplicateQuotation } from '@/lib/actions/quotation.actions';
 
 const months = [
     "January", "February", "March", "April", "May", "June", 
@@ -167,6 +168,16 @@ export function QuotationList() {
     setSelectedCompany('');
     setSelectedDate(undefined);
     setCurrentPage(1);
+  };
+
+  const handleDuplicate = async (quotationId: string) => {
+    try {
+        await duplicateQuotation(quotationId);
+        await syncQuotations(); // Re-sync to get the new quotation
+        toast({ title: "Success", description: "Quotation duplicated successfully." });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: "Error Duplicating Quotation", description: error.message });
+    }
   };
 
   const handleDelete = async (quotationId: string) => {
@@ -677,6 +688,9 @@ export function QuotationList() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => router.push(`/quotations/new?id=${quotation.id}`)}>
                               <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDuplicate(quotation.id)}>
+                              <Copy className="mr-2 h-4 w-4" /> Duplicate
                             </DropdownMenuItem>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
