@@ -37,16 +37,21 @@ interface StatCardProps {
     value: string | number;
     icon: LucideIcon;
     description: string;
+    isLoading: boolean;
 }
 
-const StatCard = ({ title, value, icon: Icon, description }: StatCardProps) => (
+const StatCard = ({ title, value, icon: Icon, description, isLoading }: StatCardProps) => (
     <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        {isLoading ? (
+            <Skeleton className="h-7 w-12" />
+        ) : (
+            <div className="text-2xl font-bold">{value}</div>
+        )}
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
@@ -149,21 +154,10 @@ function DashboardPageContent() {
         </header>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {isLoading || !stats ? (
-                <>
-                    <Skeleton className="h-28" />
-                    <Skeleton className="h-28" />
-                    <Skeleton className="h-28" />
-                    <Skeleton className="h-28" />
-                </>
-            ) : (
-                <>
-                    <StatCard title="Total Companies" value={stats.companies} icon={Users} description="All client companies managed." />
-                    <StatCard title="Total Quotations" value={stats.quotations.total} icon={BarChart} description="All quotations generated." />
-                    <StatCard title="Pending Quotations" value={stats.quotations.pending} icon={Clock} description="Quotations awaiting action." />
-                    <StatCard title="Completed Deals" value={stats.quotations.completed} icon={CheckCircle} description="Quotations marked as complete." />
-                </>
-            )}
+            <StatCard title="Total Companies" value={stats?.companies ?? 0} icon={Users} description="All client companies managed." isLoading={isLoading} />
+            <StatCard title="Total Quotations" value={stats?.quotations.total ?? 0} icon={BarChart} description="All quotations generated." isLoading={isLoading} />
+            <StatCard title="Pending Quotations" value={stats?.quotations.pending ?? 0} icon={Clock} description="Quotations awaiting action." isLoading={isLoading} />
+            <StatCard title="Completed Deals" value={stats?.quotations.completed ?? 0} icon={CheckCircle} description="Quotations marked as complete." isLoading={isLoading} />
         </div>
 
         <Card className="col-span-1 md:col-span-2">
