@@ -17,14 +17,18 @@ export async function getQuotations(): Promise<Quotation[]> {
         const userId = await getAuthenticatedUserId();
         if (!userId) return [];
         await dbConnect();
-        const quotations = await QuotationModel.find({ userId }).sort({ quotationNumber: -1 });
+        const quotations = await QuotationModel.find({ userId }).sort({ quotationNumber: -1 }).lean();
         
         const plainQuotations = plain(quotations);
 
         // Enrich with company data
+        const companyIds = [...new Set(plainQuotations.map(q => q.companyId).filter(Boolean))];
+        const companies = await CompanyModel.find({ _id: { $in: companyIds } }).lean();
+        const companyMap = new Map(companies.map(c => [c._id.toString(), plain(c)]));
+
         for (const q of plainQuotations) {
             if (q.companyId) {
-                q.company = plain(await CompanyModel.findById(q.companyId));
+                q.company = companyMap.get(q.companyId);
             }
         }
         
@@ -38,7 +42,7 @@ export async function getQuotations(): Promise<Quotation[]> {
 export async function getQuotation(quotationId: string): Promise<Quotation | null> {
     try {
         await dbConnect();
-        const quotation = await QuotationModel.findById(quotationId);
+        const quotation = await QuotationModel.findById(quotationId).lean();
         return plain(quotation);
     } catch (error: any) {
         console.error(`Database Error: Failed to get quotation ${quotationId}.`, error);
@@ -58,49 +62,55 @@ export async function getQuotationCountForNumber(): Promise<number> {
     }
 }
 
-export async function createQuotation(quotationData: Omit<Quotation, 'id'>) {
+export async function createQuotation(quotationData: Omit<Quotation, 'id' | '_id'>): Promise<Quotation> {
     const userId = await getAuthenticatedUserId();
     if (!userId) throw new Error("Authentication required.");
     try {
         await dbConnect();
-        await QuotationModel.create({ ...quotationData, userId });
+        const newQuotation = await QuotationModel.create({ ...quotationData, userId });
         revalidatePath('/quotations');
+        return plain(newQuotation);
     } catch (error: any) {
         console.error('Database Error: Failed to create quotation.', error);
         throw new Error(`Failed to create quotation. ${error.message}`);
     }
 }
 
-export async function updateQuotation(quotationId: string, quotationData: Partial<Quotation>) {
+export async function updateQuotation(quotationId: string, quotationData: Partial<Quotation>): Promise<Quotation> {
     try {
         await dbConnect();
-        await QuotationModel.findByIdAndUpdate(quotationId, quotationData);
+        const updatedQuotation = await QuotationModel.findByIdAndUpdate(quotationId, quotationData, { new: true }).lean();
+        if (!updatedQuotation) throw new Error("Failed to update quotation or quotation not found.");
+        
         revalidatePath('/quotations');
         revalidatePath(`/quotations/new?id=${quotationId}`);
+
+        return plain(updatedQuotation);
     } catch (error: any) {
         console.error(`Database Error: Failed to update quotation ${quotationId}.`, error);
         throw new Error(`Failed to update quotation. ${error.message}`);
     }
 }
 
-export async function deleteQuotation(quotationId: string) {
+export async function deleteQuotation(quotationId: string): Promise<{ id: string }> {
     try {
         await dbConnect();
         await QuotationModel.findByIdAndDelete(quotationId);
         revalidatePath('/quotations');
+        return { id: quotationId };
     } catch (error: any) {
         console.error(`Database Error: Failed to delete quotation ${quotationId}.`, error);
         throw new Error(`Failed to delete quotation. ${error.message}`);
     }
 }
 
-export async function duplicateQuotation(quotationId: string) {
+export async function duplicateQuotation(quotationId: string): Promise<Quotation> {
     const userId = await getAuthenticatedUserId();
     if (!userId) throw new Error("Authentication required.");
 
     try {
         await dbConnect();
-        const originalQuotation = await QuotationModel.findById(quotationId);
+        const originalQuotation = await QuotationModel.findById(quotationId).lean();
         if (!originalQuotation) {
             throw new Error("Original quotation not found.");
         }
@@ -122,13 +132,14 @@ export async function duplicateQuotation(quotationId: string) {
             userId,
             quotationNumber: newQuotationNumber,
             date: new Date().toLocaleDateString('en-CA'),
-            progress: 'Pending',
+            progress: 'Pending' as QuotationStatus,
             createdAt: new Date(),
             updatedAt: new Date(),
         };
 
-        await QuotationModel.create(newQuotationData);
+        const createdQuotation = await QuotationModel.create(newQuotationData);
         revalidatePath('/quotations');
+        return plain(createdQuotation);
 
     } catch (error: any) {
         console.error('Database Error: Failed to duplicate quotation.', error);
@@ -136,11 +147,14 @@ export async function duplicateQuotation(quotationId: string) {
     }
 }
 
-export async function updateQuotationProgress(quotationId: string, progress: QuotationStatus) {
+export async function updateQuotationProgress(quotationId: string, progress: QuotationStatus): Promise<Quotation> {
     try {
         await dbConnect();
-        await QuotationModel.findByIdAndUpdate(quotationId, { progress });
+        const updatedQuotation = await QuotationModel.findByIdAndUpdate(quotationId, { progress }, { new: true }).lean();
+        if (!updatedQuotation) throw new Error("Failed to update quotation progress or quotation not found.");
+
         revalidatePath('/quotations');
+        return plain(updatedQuotation);
     } catch (error: any) {
         console.error(`Database Error: Failed to update quotation progress for ${quotationId}.`, error);
         throw new Error(`Failed to update quotation status. ${error.message}`);

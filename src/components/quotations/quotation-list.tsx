@@ -4,8 +4,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, syncQuotations, syncUserProfile } from '@/lib/local-db';
 import {
   Card,
   CardContent,
@@ -71,11 +69,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency, formatNumberForPdf, cn, sanitizeFilename } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { format, isSameDay } from 'date-fns';
-import { deleteQuotation, updateQuotationProgress, duplicateQuotation } from '@/lib/actions/quotation.actions';
+import { useQuotations, useDeleteQuotation, useDuplicateQuotation, useUpdateQuotationProgress } from '@/hooks/use-quotations';
+import { getProfile } from '@/lib/actions/profile.actions';
 
 const months = [
     "January", "February", "March", "April", "May", "June", 
@@ -85,11 +83,13 @@ const months = [
 export function QuotationList() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
-  
-  const [isSyncing, setIsSyncing] = useState(true);
-  const localQuotations = useLiveQuery(() => db.quotations.orderBy('quotationNumber').reverse().toArray(), []);
-  const userProfile = useLiveQuery(() => db.userProfile.toCollection().first(), []);
+
+  const { data: quotations, isLoading, isError } = useQuotations();
+  const deleteMutation = useDeleteQuotation();
+  const duplicateMutation = useDuplicateQuotation();
+  const updateProgressMutation = useUpdateQuotationProgress();
+
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -101,42 +101,29 @@ export function QuotationList() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      setIsSyncing(true);
-      Promise.all([syncQuotations(), syncUserProfile()])
-        .catch(error => {
-          console.error("Failed to sync data:", error);
-          toast({ variant: 'destructive', title: 'Error Syncing Data', description: error.message });
-        })
-        .finally(() => {
-          setIsSyncing(false);
-        });
-    } else if (!authLoading && !user) {
-      setIsSyncing(false);
-    }
-  }, [user, authLoading, toast]);
-
+    getProfile().then(setUserProfile);
+  }, []);
 
   const uniqueLocations = useMemo(() => {
-    const quotations = localQuotations || [];
-    const locations = new Set(quotations.map(q => q.company?.location).filter(Boolean));
+    const quotationList = quotations || [];
+    const locations = new Set(quotationList.map(q => q.company?.location).filter(Boolean));
     return Array.from(locations as string[]);
-  }, [localQuotations]);
+  }, [quotations]);
 
   const uniqueCompanies = useMemo(() => {
-    const quotations = localQuotations || [];
+    const quotationList = quotations || [];
     const companyMap = new Map<string, { id: string; name: string }>();
-    quotations.forEach(q => {
+    quotationList.forEach(q => {
       if (q.company && !companyMap.has(q.company.id)) {
         companyMap.set(q.company.id, { id: q.company.id, name: q.company.name });
       }
     });
     return Array.from(companyMap.values());
-  }, [localQuotations]);
+  }, [quotations]);
 
   const filteredQuotations = useMemo(() => {
-    const quotations = localQuotations || [];
-    return quotations.filter(q => {
+    const quotationList = quotations || [];
+    return quotationList.filter(q => {
       const lowercasedTerm = searchTerm.toLowerCase();
       const searchMatch =
         q.quotationNumber.toLowerCase().includes(lowercasedTerm) ||
@@ -151,10 +138,10 @@ export function QuotationList() {
 
       return searchMatch && monthMatch && locationMatch && companyMatch && dateMatch;
     });
-  }, [localQuotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
+  }, [quotations, searchTerm, selectedMonth, selectedLocation, selectedCompany, selectedDate]);
   
   const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
-  const totalQuotations = localQuotations?.length ?? 0;
+  const totalQuotations = quotations?.length ?? 0;
 
   const paginatedQuotations = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -170,34 +157,16 @@ export function QuotationList() {
     setCurrentPage(1);
   };
 
-  const handleDuplicate = async (quotationId: string) => {
-    try {
-        await duplicateQuotation(quotationId);
-        await syncQuotations(); // Re-sync to get the new quotation
-        toast({ title: "Success", description: "Quotation duplicated successfully." });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "Error Duplicating Quotation", description: error.message });
-    }
+  const handleDuplicate = (quotationId: string) => {
+    duplicateMutation.mutate(quotationId);
   };
 
-  const handleDelete = async (quotationId: string) => {
-    try {
-        await deleteQuotation(quotationId);
-        await db.quotations.delete(quotationId);
-        toast({ title: "Success", description: "Quotation deleted successfully." });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "Error Deleting Quotation", description: error.message });
-    }
+  const handleDelete = (quotationId: string) => {
+    deleteMutation.mutate(quotationId);
   };
   
-  const handleProgressChange = async (quotationId: string, newProgress: QuotationStatus) => {
-    try {
-        await updateQuotationProgress(quotationId, newProgress);
-        await db.quotations.update(quotationId, { progress: newProgress });
-        toast({ title: "Status Updated", description: "Quotation progress has been updated." });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "Error Updating Status", description: error.message });
-    }
+  const handleProgressChange = (quotationId: string, newProgress: QuotationStatus) => {
+    updateProgressMutation.mutate({ quotationId, progress: newProgress });
   };
 
   const exportToCSV = () => {
@@ -537,8 +506,6 @@ export function QuotationList() {
     }
   };
   
-  const isLoading = localQuotations === undefined || (isSyncing && localQuotations?.length === 0);
-
   return (
     <Card>
       <CardHeader>
@@ -560,6 +527,7 @@ export function QuotationList() {
                     <Button
                         onClick={exportToCSV}
                         variant="outline"
+                        disabled={!quotations || quotations.length === 0}
                     >
                         <DownloadIcon className="mr-2 h-4 w-4" />
                         Export
@@ -636,7 +604,14 @@ export function QuotationList() {
                     <TableCell colSpan={7} className="h-24 text-center">
                         <div className="flex justify-center items-center">
                             <Loader2 className="h-6 w-6 animate-spin" />
+                            <span className="ml-2">Loading quotations...</span>
                         </div>
+                    </TableCell>
+                </TableRow>
+            ) : isError ? (
+                <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-destructive">
+                        Failed to load quotations.
                     </TableCell>
                 </TableRow>
             ) : paginatedQuotations.length > 0 ? (
@@ -683,14 +658,15 @@ export function QuotationList() {
                             <DropdownMenuItem onClick={() => setSelectedQuotation(quotation)}>
                               <Eye className="mr-2 h-4 w-4" /> View
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDownloadPdf(quotation)}>
+                            <DropdownMenuItem onClick={() => handleDownloadPdf(quotation)} disabled={!userProfile}>
                               <DownloadIcon className="mr-2 h-4 w-4" /> Download PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => router.push(`/quotations/new?id=${quotation.id}`)}>
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleDuplicate(quotation.id)}>
-                              <Copy className="mr-2 h-4 w-4" /> Duplicate
+                                {duplicateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4" />}
+                                Duplicate
                             </DropdownMenuItem>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -709,6 +685,7 @@ export function QuotationList() {
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction onClick={() => handleDelete(quotation.id)} className="bg-destructive hover:bg-destructive/90">
+                                    {deleteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
                                     Delete
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
@@ -730,7 +707,7 @@ export function QuotationList() {
           </Table>
         </div>
         
-        {totalPages > 0 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-end space-x-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
                 {filteredQuotations.length} of {totalQuotations} row(s) found.

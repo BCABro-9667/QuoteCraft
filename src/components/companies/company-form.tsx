@@ -15,11 +15,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import type { Company } from '@/types';
-import { getCompany, createCompany, updateCompany } from '@/lib/actions/company.actions';
+import { getCompany } from '@/lib/actions/company.actions';
+import { useCreateCompany, useUpdateCompany } from '@/hooks/use-companies';
 import { Loader2 } from 'lucide-react';
 
 const companyFormSchema = z.object({
@@ -37,10 +37,10 @@ type CompanyFormValues = z.infer<typeof companyFormSchema>;
 
 export function CompanyForm({ companyId }: { companyId?: string }) {
   const router = useRouter();
-  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const createCompanyMutation = useCreateCompany();
+  const updateCompanyMutation = useUpdateCompany();
   const isEditMode = !!companyId;
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   
   const form = useForm<CompanyFormValues>({
@@ -62,51 +62,39 @@ export function CompanyForm({ companyId }: { companyId?: string }) {
             if (company) {
               form.reset(company);
             } else {
-              toast({ variant: 'destructive', title: 'Error', description: 'Company not found.' });
               router.push('/companies');
             }
           } catch (error: any) {
             console.error('Failed to fetch company details:', error);
-            toast({ variant: 'destructive', title: 'Error Fetching Company', description: error.message });
           } finally {
             setIsLoading(false);
           }
         };
         fetchCompany();
       } else if (!authLoading && !user) {
-        // User not logged in, but trying to access an authenticated route.
-        // ProtectedRoute will handle redirect, but we should stop loading.
         setIsLoading(false);
       }
     } else {
-      // Not in edit mode, so no data to fetch.
       setIsLoading(false);
     }
-  }, [companyId, user, authLoading, isEditMode, form, router, toast]);
+  }, [companyId, user, authLoading, isEditMode, form, router]);
 
   const onSubmit = async (data: CompanyFormValues) => {
-    if (!user) {
-        toast({ variant: 'destructive', title: "Authentication Error", description: "You must be logged in." });
-        return;
-    }
+    if (!user) return;
 
-    setIsSubmitting(true);
-    try {
-        if (isEditMode && companyId) {
-            await updateCompany(companyId, data);
-            toast({ title: "Success", description: "Company updated successfully." });
-        } else {
-            await createCompany(data);
-            toast({ title: "Success", description: "Company added successfully." });
-        }
-        router.push('/companies');
-        router.refresh(); // To reflect changes in the list
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "Error Saving Company", description: error.message });
-        setIsSubmitting(false);
+    if (isEditMode && companyId) {
+        updateCompanyMutation.mutate({ companyId, data }, {
+            onSuccess: () => router.push('/companies'),
+        });
+    } else {
+        createCompanyMutation.mutate(data, {
+            onSuccess: () => router.push('/companies'),
+        });
     }
   };
   
+  const isSubmitting = createCompanyMutation.isPending || updateCompanyMutation.isPending;
+
   if (isLoading) {
     return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }

@@ -1,8 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, syncCompanies } from '@/lib/local-db';
+import React, { useState, useMemo } from 'react';
 import {
   Table,
   TableHeader,
@@ -51,54 +49,34 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { deleteCompany } from '@/lib/actions/company.actions';
-import { useToast } from '@/hooks/use-toast';
+import { useCompanies, useDeleteCompany } from '@/hooks/use-companies';
 
 export function CompanyList() {
-  const { user, loading: authLoading } = useAuth();
-  const { toast } = useToast();
   const router = useRouter();
-
-  const [isSyncing, setIsSyncing] = useState(true);
-  const localCompanies = useLiveQuery(() => db.companies.orderBy('name').toArray(), []);
-
+  const { data: companies, isLoading, isError } = useCompanies();
+  const deleteCompanyMutation = useDeleteCompany();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      setIsSyncing(true);
-      syncCompanies()
-        .catch(error => {
-          console.error("Failed to sync companies:", error);
-          toast({ variant: 'destructive', title: 'Error Syncing Data', description: error.message });
-        })
-        .finally(() => {
-          setIsSyncing(false);
-        });
-    } else if (!authLoading && !user) {
-      setIsSyncing(false);
-    }
-  }, [user, authLoading, toast]);
-
-
   const filteredCompanies = useMemo(() => {
-    const companies = localCompanies || [];
-    return companies.filter(
+    const companyList = companies || [];
+    if (!searchTerm) return companyList;
+
+    return companyList.filter(
       (company) =>
         company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (company.email && company.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (company.location && company.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (company.gstin && company.gstin.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [localCompanies, searchTerm]);
+  }, [companies, searchTerm]);
 
   const totalPages = Math.ceil(filteredCompanies.length / itemsPerPage);
-  const totalCompanies = localCompanies?.length ?? 0;
+  const totalCompanies = companies?.length ?? 0;
 
   const paginatedCompanies = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -106,13 +84,7 @@ export function CompanyList() {
   }, [filteredCompanies, currentPage, itemsPerPage]);
 
   const handleDelete = async (companyId: string) => {
-    try {
-        await deleteCompany(companyId);
-        await db.companies.delete(companyId);
-        toast({ title: 'Success', description: 'Company deleted successfully.' });
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Error Deleting Company', description: error.message });
-    }
+    deleteCompanyMutation.mutate(companyId);
   };
 
   const exportToCSV = () => {
@@ -144,8 +116,6 @@ export function CompanyList() {
     link.click();
     document.body.removeChild(link);
   };
-
-  const isLoading = localCompanies === undefined || (isSyncing && localCompanies?.length === 0);
   
   return (
     <Card>
@@ -164,6 +134,7 @@ export function CompanyList() {
             <Button
               onClick={exportToCSV}
               variant="outline"
+              disabled={!companies || companies.length === 0}
             >
               <FileDown className="mr-2 h-4 w-4" />
               Export
@@ -195,7 +166,14 @@ export function CompanyList() {
                     <TableCell colSpan={5} className="h-24 text-center">
                         <div className="flex justify-center items-center">
                             <Loader2 className="h-6 w-6 animate-spin" />
+                            <span className="ml-2">Loading companies...</span>
                         </div>
+                    </TableCell>
+                </TableRow>
+              ) : isError ? (
+                <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center text-destructive">
+                        Failed to load companies.
                     </TableCell>
                 </TableRow>
               ) : paginatedCompanies.length > 0 ? (
@@ -237,6 +215,7 @@ export function CompanyList() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={() => handleDelete(company.id)} className="bg-destructive hover:bg-destructive/90">
+                                  {deleteCompanyMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                   Delete
                                 </AlertDialogAction>
                               </AlertDialogFooter>
@@ -258,7 +237,7 @@ export function CompanyList() {
           </Table>
         </div>
         
-        {totalPages > 0 && (
+        {totalPages > 1 && (
           <div className="flex items-center justify-end space-x-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
               {filteredCompanies.length} of {totalCompanies} row(s) found.

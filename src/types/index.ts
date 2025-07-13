@@ -1,6 +1,8 @@
 
+
 export interface Company {
-  id: string;
+  _id: string; // From MongoDB
+  id: string; // Virtual
   name: string;
   address?: string;
   location?: string;
@@ -30,7 +32,8 @@ export const quantityTypes = ['Set', 'Nos', 'Piece', 'Pair', 'Kg', 'Meter'] as c
 export type QuantityType = (typeof quantityTypes)[number];
 
 export interface Product {
-  id: string;
+  _id: string; // From MongoDB
+  id: string; // Virtual
   srNo: number;
   name: string;
   model?: string;
@@ -45,7 +48,8 @@ export const quotationStatuses = ['Pending', 'Complete', 'Rejected'] as const;
 export type QuotationStatus = (typeof quotationStatuses)[number];
 
 export interface Quotation {
-  id: string;
+  _id: string; // From MongoDB
+  id: string; // Virtual
   quotationNumber: string;
   date: string;
   companyId: string;

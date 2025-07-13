@@ -13,7 +13,7 @@ export async function getCompanies(): Promise<Company[]> {
         const userId = await getAuthenticatedUserId();
         if (!userId) return [];
         await dbConnect();
-        const companies = await CompanyModel.find({ userId }).sort({ name: 1 });
+        const companies = await CompanyModel.find({ userId }).sort({ name: 1 }).lean();
         return plain(companies);
     } catch (error: any) {
         console.error('Database Error: Failed to get companies.', error);
@@ -24,7 +24,7 @@ export async function getCompanies(): Promise<Company[]> {
 export async function getCompany(companyId: string): Promise<Company | null> {
     try {
         await dbConnect();
-        const company = await CompanyModel.findById(companyId);
+        const company = await CompanyModel.findById(companyId).lean();
         return plain(company);
     } catch (error: any) {
         console.error(`Database Error: Failed to get company ${companyId}.`, error);
@@ -32,13 +32,13 @@ export async function getCompany(companyId: string): Promise<Company | null> {
     }
 }
 
-export async function createCompany(companyData: Omit<Company, 'id'>) {
+export async function createCompany(companyData: Omit<Company, 'id' | '_id'>): Promise<Company> {
     const userId = await getAuthenticatedUserId();
     if (!userId) {
         throw new Error("Authentication required.");
     }
 
-    const { name, address, location, email, phone, contactPerson, gstin, remarks } = companyData;
+    const { name } = companyData;
     
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
         throw new Error("Company Name is a required field.");
@@ -46,18 +46,9 @@ export async function createCompany(companyData: Omit<Company, 'id'>) {
 
     try {
         await dbConnect();
-        await CompanyModel.create({
-            userId,
-            name,
-            address,
-            location,
-            email,
-            phone,
-            contactPerson,
-            gstin,
-            remarks
-        });
+        const newCompany = await CompanyModel.create({ ...companyData, userId });
         revalidatePath('/companies');
+        return plain(newCompany);
     } catch (error: any) {
         console.error('Database Error: Failed to create company.', error);
         if (error.name === 'ValidationError') {
@@ -68,14 +59,14 @@ export async function createCompany(companyData: Omit<Company, 'id'>) {
     }
 }
 
-export async function updateCompany(companyId: string, companyData: Partial<Company>) {
+export async function updateCompany(companyId: string, companyData: Partial<Company>): Promise<Company> {
     const userId = await getAuthenticatedUserId();
     if (!userId) {
         throw new Error("Authentication required.");
     }
 
-    const { name, address, location, email, phone, contactPerson, gstin, remarks } = companyData;
-    const updateData: Partial<Omit<Company, 'id'>> = {};
+    const { name, ...rest } = companyData;
+    const updateData: Partial<Omit<Company, 'id' | '_id'>> = rest;
 
     if (name !== undefined) {
         if (typeof name !== 'string' || name.trim().length === 0) {
@@ -84,18 +75,10 @@ export async function updateCompany(companyId: string, companyData: Partial<Comp
         updateData.name = name;
     }
 
-    // Only add fields to the update object if they are present in companyData
-    if (address !== undefined) updateData.address = address;
-    if (location !== undefined) updateData.location = location;
-    if (email !== undefined) updateData.email = email;
-    if (phone !== undefined) updateData.phone = phone;
-    if (contactPerson !== undefined) updateData.contactPerson = contactPerson;
-    if (gstin !== undefined) updateData.gstin = gstin;
-    if (remarks !== undefined) updateData.remarks = remarks;
-
-    // If there's nothing to update, just return.
-    if (Object.keys(updateData).length === 0) {
-        return;
+    if (Object.keys(updateData).length === 0 && name === undefined) {
+       const existingCompany = await getCompany(companyId);
+       if (!existingCompany) throw new Error("Company not found.");
+       return existingCompany;
     }
     
     try {
@@ -106,9 +89,13 @@ export async function updateCompany(companyId: string, companyData: Partial<Comp
             throw new Error("Company not found or permission denied.");
         }
 
-        await CompanyModel.findByIdAndUpdate(companyId, updateData);
+        const updatedCompany = await CompanyModel.findByIdAndUpdate(companyId, updateData, { new: true }).lean();
+        if (!updatedCompany) throw new Error("Failed to update company.");
+
         revalidatePath('/companies');
         revalidatePath(`/companies/new?id=${companyId}`);
+
+        return plain(updatedCompany);
     } catch (error: any) {
         console.error(`Database Error: Failed to update company ${companyId}.`, error);
         if (error.name === 'ValidationError') {
@@ -119,7 +106,7 @@ export async function updateCompany(companyId: string, companyData: Partial<Comp
     }
 }
 
-export async function deleteCompany(companyId: string) {
+export async function deleteCompany(companyId: string): Promise<{ id: string }> {
     const userId = await getAuthenticatedUserId();
     if(!userId) throw new Error("Authentication required.");
     
@@ -133,6 +120,7 @@ export async function deleteCompany(companyId: string) {
 
         await CompanyModel.findByIdAndDelete(companyId);
         revalidatePath('/companies');
+        return { id: companyId };
     } catch (error: any) {
         console.error(`Database Error: Failed to delete company ${companyId}.`, error);
         throw new Error(`Failed to delete company. ${error.message}`);
